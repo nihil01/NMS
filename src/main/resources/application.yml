@@ -1,0 +1,21 @@
+spring:
+
+  password_auth: "@dminDvx2025!@"
+
+  snmp:
+    community: netadmin
+
+  webflux:
+    session:
+      cookie:
+        same-site: None
+        secure: true
+
+  r2dbc:
+    url: r2dbc:postgresql://localhost:5432/nms
+    username: postgres
+    password: orxan20052004
+    pool:
+      enabled: true
+      initial-size: 5
+      max-size: 20
