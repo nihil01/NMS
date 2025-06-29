@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Card, 
   CardBody, 
   CardHeader,
   Button,
   Chip,
-  Progress
+  Progress,
+  Avatar
 } from '@heroui/react';
 import { 
   ChartBarIcon, 
@@ -13,15 +14,35 @@ import {
   WifiIcon, 
   ExclamationTriangleIcon,
   CheckCircleIcon,
-  CpuChipIcon,
-  SignalIcon
+  SignalIcon,
+  PowerIcon
 } from '@heroicons/react/24/outline';
-import { mockData } from '../data/mockData';
 
-import { Device } from './Device';
+import { HttpClient } from '../net/HttpClient';
+import { DeviceComponent } from './DeviceComponent';
 
-const Dashboard: React.FC = () => {
+const Dashboard: React.FC<{ authenticated: (isAuthenticated: boolean) => void }> = ({ authenticated }) => {
+
   const [selectedTab, setSelectedTab] = useState<'dashboard' | 'devices' | 'network' | 'alerts'>('dashboard');
+  const [deviceCount, setDeviceCount] = useState<number>(0);
+  const [networkUptime, setNetworkUptime] = useState<number>(0);
+
+  useEffect(() => {
+    const fetchDeviceCount = async () => {
+      const count = await new HttpClient().getDeviceCount();
+      setDeviceCount(count);
+    };
+    fetchDeviceCount();
+
+
+    const fetchNetworkUptime = async () => {
+      const uptime = await new HttpClient().getNetworkUptime();
+      setNetworkUptime(uptime);
+    };
+    fetchNetworkUptime();
+    
+  }, []);
+
 
   const renderContent = () => {
     switch (selectedTab) {
@@ -34,21 +55,13 @@ const Dashboard: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Ümumi Cihazlar</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{mockData.totalDevices}</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{deviceCount}</p>
                   </div>
                   <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
                     <ServerIcon className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                   </div>
                 </div>
-                <div className="mt-4">
-                  <Progress 
-                    value={mockData.deviceHealth} 
-                    color="success" 
-                    size="sm" 
-                    className="w-full"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">{mockData.deviceHealth}% Sağlam</p>
-                </div>
+
               </CardBody>
             </Card>
 
@@ -56,8 +69,10 @@ const Dashboard: React.FC = () => {
               <CardBody className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Şəbəkə İşləmə Müddəti</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{mockData.networkUptime}%</p>
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Servisin İşləmə Müddəti</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                      {`${Math.floor(networkUptime / 1000 / 60 / 60 / 24)} Gün; ${Math.floor(networkUptime / 1000 / 60 / 60) % 24} Saat; ${Math.floor(networkUptime / 1000 / 60) % 60} Dəqiqə; ${networkUptime % 1000 % 60} Saniye`}
+                    </p>
                   </div>
                   <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
                     <WifiIcon className="w-6 h-6 text-green-600 dark:text-green-400" />
@@ -65,65 +80,18 @@ const Dashboard: React.FC = () => {
                 </div>
                 <div className="mt-4">
                   <Progress 
-                    value={mockData.networkUptime} 
+                    value={networkUptime} 
                     color="success" 
                     size="sm" 
                     className="w-full"
                   />
-                  <p className="text-xs text-gray-500 mt-1">Son 30 gün</p>
-                </div>
-              </CardBody>
-            </Card>
-
-            <Card className="metric-card">
-              <CardBody className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Aktiv Xəbərdarlıqlar</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{mockData.activeAlerts}</p>
-                  </div>
-                  <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center">
-                    <ExclamationTriangleIcon className="w-6 h-6 text-red-600 dark:text-red-400" />
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <Progress 
-                    value={mockData.alertSeverity} 
-                    color="danger" 
-                    size="sm" 
-                    className="w-full"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">{mockData.alertSeverity}% Kritik</p>
-                </div>
-              </CardBody>
-            </Card>
-
-            <Card className="metric-card">
-              <CardBody className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">CPU İstifadəsi</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{mockData.avgCpuUsage}%</p>
-                  </div>
-                  <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
-                    <CpuChipIcon className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <Progress 
-                    value={mockData.avgCpuUsage} 
-                    color="secondary" 
-                    size="sm" 
-                    className="w-full"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Cihazlar üzrə orta</p>
                 </div>
               </CardBody>
             </Card>
           </div>
         );
       case 'devices':
-        return <Device />;
+        return <DeviceComponent deviceCount={deviceCount} />;
       case 'network':
         return (
           <Card className="dashboard-card">
@@ -158,7 +126,7 @@ const Dashboard: React.FC = () => {
         <div className="p-6">
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <SignalIcon className="w-5 h-5 text-white" />
+              <Avatar size='lg' src={"http://localhost:8080/logo.jpg"} />
             </div>
             <h1 className="text-xl font-bold text-gray-900 dark:text-white">NMS İdarə Paneli</h1>
           </div>
@@ -231,14 +199,17 @@ const Dashboard: React.FC = () => {
                   {selectedTab === 'network' && 'Şəbəkə Monitorinqi'}
                   {selectedTab === 'alerts' && 'Sistem Xəbərdarlıqları'}
                 </h2>
-                <p className="text-gray-600 dark:text-gray-400">Şəbəkə infrastrukturunuzu real vaxtda izləyin</p>
+                <p className="text-gray-600 dark:text-gray-400">Şəbəkə infrastrukturunuzu real-time olaraq izləyin</p>
               </div>
               <div className="flex items-center space-x-4">
                 <Chip variant="flat" color="success" startContent={<CheckCircleIcon className="w-4 h-4" />}>
                   Sistem Sağlamdır
                 </Chip>
-                <Button variant="flat" color="primary">
-                  Məlumatları Yenilə
+                <Button variant="flat" color="danger" onClick={() => {
+                  new HttpClient().logout();
+                  authenticated(false);
+                }} startContent={<PowerIcon className="w-4 h-4" color="red"/>}>
+                  <span className="text-red-500">Çıxış</span>
                 </Button>
               </div>
             </div>
