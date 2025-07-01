@@ -57,8 +57,9 @@ export const DeviceComponent: React.FC<{ deviceCount: number }> = ({ deviceCount
     name: '',
     type: '',
     ipAddress: '',
-    place: ''
-    });
+    place: '',
+    vendor: ''
+  });
 
   const [devices, setDevices] = useState<DeviceResponseDTO[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState<number | null>(null);
@@ -67,6 +68,7 @@ export const DeviceComponent: React.FC<{ deviceCount: number }> = ({ deviceCount
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isPaginationLoading, setIsPaginationLoading] = useState(false);
   const [isAddingDevice, setIsAddingDevice] = useState(false);
+  const [isDetectingVendor, setIsDetectingVendor] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -139,13 +141,33 @@ export const DeviceComponent: React.FC<{ deviceCount: number }> = ({ deviceCount
       const updatedDevices = await new HttpClient().getDevices();
       setDevices(updatedDevices);
 
-      setNewDevice({ name: '', type: '', ipAddress: '', place: '' });
+      setNewDevice({ name: '', type: '', ipAddress: '', place: '', vendor: '' });
       setIsOpen(false);
     } catch (error) {
       console.error('Failed to add device:', error);
       alert('Cihaz əlavə edilərkən xəta baş verdi');
     } finally {
       setIsAddingDevice(false);
+    }
+  };
+
+  const handleAutoDetectVendor = async () => {
+    if (!newDevice.ipAddress) {
+      alert('Zəhmət olmasa əvvəlcə IP ünvanını daxil edin');
+      return;
+    }
+
+    try {
+      setIsDetectingVendor(true);
+      const vendor = await new HttpClient().getVendorByIp(newDevice.ipAddress);
+      alert(vendor);
+      setNewDevice({ ...newDevice, vendor: vendor });
+
+    } catch (error) {
+      console.error('Failed to get vendor:', error);
+      alert('Vendor məlumatı alınarkən xəta baş verdi');
+    } finally {
+      setIsDetectingVendor(false);
     }
   };
 
@@ -460,6 +482,29 @@ export const DeviceComponent: React.FC<{ deviceCount: number }> = ({ deviceCount
                 isRequired
                 isDisabled={isAddingDevice}
               />
+              
+              <div className="flex gap-2">
+                <Input
+                  aria-label="Vendor"
+                  placeholder="Vendor məlumatı"
+                  value={newDevice.vendor || ''}
+                  onChange={(e) => setNewDevice({ ...newDevice, vendor: e.target.value })}
+                  variant="bordered"
+                  className="flex-1"
+                  isDisabled={isAddingDevice}
+                />
+                <Button
+                  aria-label="Vendor məlumatını avtomatik al"
+                  variant="bordered"
+                  size="sm"
+                  onPress={handleAutoDetectVendor}
+                  isDisabled={!newDevice.ipAddress || isAddingDevice || isDetectingVendor}
+                  isLoading={isDetectingVendor}
+                  className="px-3"
+                >
+                  {isDetectingVendor ? '' : 'Auto'}
+                </Button>
+              </div>
               
               <Input
                 aria-label="Məkan"

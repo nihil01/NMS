@@ -43,4 +43,5 @@ export interface Device {
   ipAddress: string;
   place: string;
   mask?: string;
+  vendor?: string; // Auto-detected vendor information
 }

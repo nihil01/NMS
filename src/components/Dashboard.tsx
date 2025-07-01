@@ -15,7 +15,8 @@ import {
   ExclamationTriangleIcon,
   CheckCircleIcon,
   SignalIcon,
-  PowerIcon
+  PowerIcon,
+  ClockIcon
 } from '@heroicons/react/24/outline';
 
 import { HttpClient } from '../net/HttpClient';
@@ -54,7 +55,7 @@ const Dashboard: React.FC<{ authenticated: (isAuthenticated: boolean) => void }>
               <CardBody className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Ümumi Cihazlar</p>
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Ümumi Cihazlarin sayi</p>
                     <p className="text-2xl font-bold text-gray-900 dark:text-white">{deviceCount}</p>
                   </div>
                   <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
@@ -75,7 +76,7 @@ const Dashboard: React.FC<{ authenticated: (isAuthenticated: boolean) => void }>
                     </p>
                   </div>
                   <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
-                    <WifiIcon className="w-6 h-6 text-green-600 dark:text-green-400" />
+                    <ClockIcon className="w-6 h-6 text-green-600 dark:text-green-400" />
                   </div>
                 </div>
                 <div className="mt-4">

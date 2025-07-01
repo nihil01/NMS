@@ -62,7 +62,15 @@ export class HttpClient {
         }
     }
 
-    async getDevices(id?: number, page: number = 1) {
+    async deleteDevice(id: number) {
+        const response = await fetch(`${this.baseUrl}/deleteDevice/${id}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+        return response.ok;
+    }
+
+    async getDevices(id?: number, page: number = 1): Promise<DeviceResponseDTO[]> {
 
         const endpoint = id ? `${this.baseUrl}/getDevices?id=${id}`
          : page ? `${this.baseUrl}/getDevices?page=${page}` : `${this.baseUrl}/getDevices`;
@@ -73,7 +81,7 @@ export class HttpClient {
         if (response.ok) {
             return await response.json();
         } else {
-            return await response.text();
+            return [];
         }
     }
 
@@ -99,4 +107,35 @@ export class HttpClient {
         return parseInt(await response.text());
     }
 
+//pinging and testing tcp connections
+
+    async pingDevice(ipAddress: string) {
+        const response = await fetch(`${this.baseUrl}/checkDeviceConnectivity/${ipAddress}?type=ping`, {
+            credentials: 'include'
+        });
+        return await response.text();
+    }
+
+    async testTcpConnection(ipAddress: string, port: number) {
+        const response = await fetch(`${this.baseUrl}/checkDeviceConnectivity/${ipAddress}?type=tcp&port=${port}`, {
+            credentials: 'include'
+        });
+        return await response.text();
+    }
+
+    async getVendorByIp(ipAddress: string) {
+    const response = await fetch(`${this.baseUrl}/getVendorByIp?ip=${encodeURIComponent(ipAddress)}`);
+      
+      if (response.ok) {
+        const vendor = await response.text();
+        if(vendor === 'UNDEFINED_VENDOR') {
+            alert('Vendor məlumatı alına bilmədi');
+            return;        
+        }
+        return vendor;
+        
+      } else {
+        throw new Error('Failed to get vendor');
+      }
+    }
 }
