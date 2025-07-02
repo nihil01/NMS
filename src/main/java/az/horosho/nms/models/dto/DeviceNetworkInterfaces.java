@@ -13,6 +13,7 @@ public class DeviceNetworkInterfaces {
     private boolean state;
     private long in;
     private long out;
+    private long errors;
     private String macAddress;
 
 }

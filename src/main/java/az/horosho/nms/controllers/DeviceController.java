@@ -19,6 +19,7 @@ import java.time.ZoneId;
 
 @RestController
 @RequiredArgsConstructor
+@RequestMapping("/api/device")
 public class DeviceController {
 
     private final DeviceService deviceService;
@@ -67,9 +68,13 @@ public class DeviceController {
 
         }
 
-        @DeleteMapping("/deleteDevice/{id}")
-        Mono<Void> deleteDevice(@PathVariable Long id) {
-            return deviceService.deleteDevice(id);
+        @DeleteMapping("/deleteDevice")
+        Mono<?> deleteDevice(
+                @RequestParam Long id,
+                @RequestParam String ipAddress,
+                @RequestParam String type
+            ) {
+            return deviceService.deleteDevice(id, ipAddress, type);
         }
 
         @GetMapping("/getDataSize")

@@ -1,9 +1,13 @@
 package az.horosho.nms.models.dto.ansible;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
 public class Host {
     private String location;

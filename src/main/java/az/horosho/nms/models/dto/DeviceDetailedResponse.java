@@ -24,9 +24,6 @@ public class DeviceDetailedResponse extends DeviceData{
     private String osVersion;        // OID: 1.3.6.1.2.1.47.1.1.1.1.10
     private String macAddress;       // Обычно собирается с интерфейсов (не по одному OID)
 
-    // ✅ Картинка устройства
-    private String imageUrl;
-
     private List<DeviceNetworkInterfaces> deviceNetworkInterfaces;
     private VendorData vendorData;
 }

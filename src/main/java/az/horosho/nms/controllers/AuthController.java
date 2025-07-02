@@ -1,19 +1,21 @@
 package az.horosho.nms.controllers;
 
 import az.horosho.nms.models.dto.UserCredentials;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.WebSession;
 import reactor.core.publisher.Mono;
 
-@org.springframework.web.bind.annotation.RestController
-public class RestController {
+@RestController
+@RequiredArgsConstructor
+@RequestMapping("/api/auth")
+public class AuthController {
 
     @Value("${spring.password_auth}")
     private String BASIC_PASSWORD;
+
 
     @GetMapping("/check")
     public Mono<ResponseEntity<?>> checkAuth(

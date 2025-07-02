@@ -276,8 +276,9 @@ public Mono<DeviceDetailedResponse> resolveSnmpRequest(String ipAddress) {
                             new VariableBinding(new OID("1.3.6.1.2.1.2.2.1.8." + state)),
                             new VariableBinding(new OID("1.3.6.1.2.1.2.2.1.10." + state)),
                             new VariableBinding(new OID("1.3.6.1.2.1.2.2.1.16." + state)),
-                            new VariableBinding(new OID("1.3.6.1.2.1.2.2.1.6." + (state)))
-                    ));
+                            new VariableBinding(new OID("1.3.6.1.2.1.2.2.1.6." + state)),
+                            new VariableBinding(new OID("1.3.6.1.2.1.2.2.1.14." + (state))
+                    )));
 
                     ResponseEvent<Address> response = snmp.get(pdu, target);
 
@@ -329,6 +330,11 @@ public Mono<DeviceDetailedResponse> resolveSnmpRequest(String ipAddress) {
                         if (oid.startsWith("1.3.6.1.2.1.2.2.1.6.")){
                             if (!value.equals("noSuchInstance")) {
                                 iface.setMacAddress(value);
+                            }
+                        }
+                        if (oid.startsWith("1.3.6.1.2.1.2.2.1.14.")) {
+                            if (!value.equals("noSuchInstance")) {
+                                iface.setErrors(Long.parseLong(value));
                             }
                         }
                     }

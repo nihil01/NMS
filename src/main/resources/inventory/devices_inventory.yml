@@ -4,4 +4,31 @@ all:
       hosts: null
     switch:
       hosts:
-
+        10.89.224.245:
+          ansible_connection: network_cli
+          ansible_network_os: ios
+          ansible_password: 0Rx@n2o25!
+          ansible_user: orxan.n
+          ipAddress: 10.89.224.245
+          location: Local Gelirler
+          type: switch
+    firewall:
+      hosts:
+        10.89.224.238:
+          ansible_connection: network_cli
+          ansible_network_os: ios
+          ansible_password: 0Rx@n2o25!
+          ansible_user: orxan.n
+          ipAddress: 10.89.224.238
+          location: Maska
+          type: firewall
+    server:
+      hosts:
+        10.89.224.231:
+          ansible_connection: network_cli
+          ansible_network_os: fortinet
+          ansible_password: 0Rx@n2o25!
+          ansible_user: orxan.n
+          ipAddress: 10.89.224.231
+          location: Miramir
+          type: server

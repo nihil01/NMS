@@ -4,7 +4,6 @@ import az.horosho.nms.models.db.Device;
 import az.horosho.nms.models.db.DeviceRepository;
 import az.horosho.nms.models.dto.DeviceData;
 import az.horosho.nms.models.dto.DeviceDetailedResponse;
-import az.horosho.nms.models.dto.VendorData;
 import az.horosho.nms.models.dto.ansible.Group;
 import az.horosho.nms.models.dto.ansible.Host;
 import az.horosho.nms.models.dto.ansible.Inventory;
@@ -29,9 +28,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.nio.channels.AsynchronousFileChannel;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -43,7 +40,6 @@ public class DeviceService implements ServicesUtility{
 
     private final DeviceRepository deviceRepository;
     private final SnmpService snmpService;
-    private final JSoupService jSoupService;
 
     @Value("${spring.inventory_path}")
     private String inventoryPath;
@@ -73,7 +69,7 @@ public class DeviceService implements ServicesUtility{
                             deviceData.setId(saved.getId());
                             deviceData.setIpAddress(gateway);
 
-                            return writeInventoryFile(getHostForInventoryFile(deviceData))
+                            return writeHostToInventoryFile(getHostForInventoryFile(deviceData))
                                 .then(deviceRepository.save(saved))
                                 .thenReturn(deviceData);
                         })
@@ -98,7 +94,7 @@ public class DeviceService implements ServicesUtility{
         });
     }
 
-public Mono<Void> writeInventoryFile(Host host) {
+    public Mono<Void> writeHostToInventoryFile(Host host) {
         return readInventoryFile()
             .mapNotNull(inventory -> {
                 System.out.println("Inventory read:");
@@ -122,63 +118,30 @@ public Mono<Void> writeInventoryFile(Host host) {
 
                 return inventory;
             })
-            .flatMap(inventory -> Mono.fromCallable(() -> {
-                try (FileWriter writer = new FileWriter(inventoryPath)) {
-                    DumperOptions options = new DumperOptions();
-                    options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
-                    options.setPrettyFlow(true);
+            .flatMap(this::saveFile);
+    }
 
-                    Representer representer = new Representer(options);
-                    representer.addClassTag(Inventory.class, Tag.MAP);
+    public Mono<Void> saveFile(Inventory inventory){
+        return Mono.fromCallable(() -> {
+            try (FileWriter writer = new FileWriter(inventoryPath)) {
+                DumperOptions options = new DumperOptions();
+                options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
+                options.setPrettyFlow(true);
 
-                    Yaml yaml = new Yaml(representer, options);
-                    yaml.dump(inventory, writer);
-                    return null;
-                }
-            }));
+                Representer representer = new Representer(options);
+                representer.addClassTag(Inventory.class, Tag.MAP);
+
+                Yaml yaml = new Yaml(representer, options);
+                yaml.dump(inventory, writer);
+                return null;
+            }catch (IOException e){
+                throw new RuntimeException(e);
+            }
+        });
     }
 
 
-    public Mono<Void> writeInventoryFile(Inventory host) {
-        return readInventoryFile()
-                .mapNotNull(inventory -> {
-                    System.out.println("Inventory read:");
-                    System.out.println(inventory);
-
-                    Map<String, Group> groupMap = inventory.getAll().getChildren();
-                    Group group = groupMap.getOrDefault(host.getType().toLowerCase(Locale.ROOT), null);
-
-                    if (group == null){
-                        System.out.println("Group is null, create new ...");
-                        Map<String, Host> newData = Map.of(host.getIpAddress(), host);
-                        group = new Group(newData);
-                        System.out.println("Group with new Data!");
-                        System.out.println(group);
-
-                        inventory.getAll().getChildren().put(host.getType(), group);
-                    } else {
-                        System.out.println("Group already exists");
-                        group.getHosts().put(host.getIpAddress(), host);
-                    }
-
-                    return inventory;
-                })
-                .flatMap(inventory -> Mono.fromCallable(() -> {
-                    try (FileWriter writer = new FileWriter(inventoryPath)) {
-                        DumperOptions options = new DumperOptions();
-                        options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
-                        options.setPrettyFlow(true);
-
-                        Representer representer = new Representer(options);
-                        representer.addClassTag(Inventory.class, Tag.MAP);
-
-                        Yaml yaml = new Yaml(representer, options);
-                        yaml.dump(inventory, writer);
-                        return null;
-                    }
-                }));
-    }
-private Host getHostForInventoryFile(DeviceData deviceData) throws IllegalArgumentException{
+    private Host getHostForInventoryFile(DeviceData deviceData) throws IllegalArgumentException{
 
         String ansibleNetworkOs;
 
@@ -312,19 +275,6 @@ private Host getHostForInventoryFile(DeviceData deviceData) throws IllegalArgume
                             DeviceData device = tuple.getT1();
                             DeviceDetailedResponse snmp = tuple.getT2();
 
-                            if (snmp.getModel() != null) {
-                                //2) scrap image
-                                return jSoupService.getImageSrcUrlByModelName(
-                                        snmp.getModel() != null && !snmp.getModel().isBlank() ?
-                                                snmp.getModel() : snmp.getSysDescr())
-                                    .defaultIfEmpty("")
-                                    .map(imgUrl -> {
-                                        snmp.setImageUrl(imgUrl);
-                                        copyBaseFields(device, snmp);
-                                        return snmp;
-                                    });
-                            }
-
                             copyBaseFields(device, snmp);
                             return Mono.just(snmp);
                         });
@@ -382,24 +332,29 @@ private Host getHostForInventoryFile(DeviceData deviceData) throws IllegalArgume
         });
     }
 
-    public Mono<Void> deleteDevice(long id, String ipAddress, String type){
+    public Mono<?> deleteDevice(long id, String ipAddress, String type) {
         return deviceRepository.findById(id)
             .switchIfEmpty(Mono.error(new IllegalArgumentException("Device not found!")))
-                .then(Mono.fromRunnable(() -> {
-                    //return from inventory file
-                    return readInventoryFile().flatMap(inventory -> {
-
-                        Host host = inventory.getAll().getChildren().get(type).getHosts().getOrDefault(ipAddress,
-                                null);
-
-                        if (host == null) return Mono.error(new IllegalArgumentException("Device not found!"));
-
-                        inventory.getAll().getChildren().get(type).getHosts().remove(ipAddress);
-                        return writeInventoryFile(inventory);
-                    });
-
-                }))
             .flatMap(deviceRepository::delete)
-            .then();
+            .then(Mono.defer(() -> readInventoryFile()
+                .flatMap(inventory -> {
+                    if (inventory == null) {
+                        return Mono.error(new IllegalArgumentException("Inventory not found!"));
+                    }
+                    System.out.println("Inventory itself:");
+                    System.out.println(inventory);
+
+                    Map<String, Group> groups = inventory.getAll().getChildren();
+                    System.out.println("Readed groups:");
+                    System.out.println(groups);
+                    Group group = groups.get(type);
+
+                    if (group == null || !group.getHosts().containsKey(ipAddress)) {
+                        return Mono.error(new IllegalArgumentException("Device not found in inventory!"));
+                    }
+
+                    group.getHosts().remove(ipAddress);
+                    return this.saveFile(inventory);
+                })));
     }
 }
