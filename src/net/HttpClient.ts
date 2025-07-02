@@ -1,18 +1,18 @@
 import type { Device, DeviceResponseDTO } from "../data/dtoInterfaces";
 
 export class HttpClient {
-    private baseUrl: string = 'http://localhost:8080';
+    private baseUrl: string = 'http://localhost:8080/api';
 
 
     async checkAuth() {
-        const response = await fetch(`${this.baseUrl}/check`, {
+        const response = await fetch(`${this.baseUrl}/auth/check`, {
             credentials: 'include'
         });
         return response.ok;
     }
 
     async logout() {
-        const response = await fetch(`${this.baseUrl}/logout`, {
+        const response = await fetch(`${this.baseUrl}/auth/logout`, {
             credentials: 'include'
         });
        
@@ -22,7 +22,7 @@ export class HttpClient {
     
     async authenticate(username: string, password: string) {
         
-        const response = await fetch(`${this.baseUrl}/login`, {
+        const response = await fetch(`${this.baseUrl}/auth/login`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -46,7 +46,7 @@ export class HttpClient {
 
 
     async uploadDevice(device: Device) {
-        const response = await fetch(`${this.baseUrl}/uploadDevice`, {
+        const response = await fetch(`${this.baseUrl}/device/uploadDevice`, {
             method: 'POST',
             body: JSON.stringify(device),
             credentials: 'include',
@@ -62,8 +62,8 @@ export class HttpClient {
         }
     }
 
-    async deleteDevice(id: number) {
-        const response = await fetch(`${this.baseUrl}/deleteDevice/${id}`, {
+    async deleteDevice(id: number, ipAddress: string, type:string) {
+        const response = await fetch(`${this.baseUrl}/device/deleteDevice?id=${id}&ipAddress=${ipAddress}&type=${type}`, {
             method: 'DELETE',
             credentials: 'include'
         });
@@ -72,8 +72,8 @@ export class HttpClient {
 
     async getDevices(id?: number, page: number = 1): Promise<DeviceResponseDTO[]> {
 
-        const endpoint = id ? `${this.baseUrl}/getDevices?id=${id}`
-         : page ? `${this.baseUrl}/getDevices?page=${page}` : `${this.baseUrl}/getDevices`;
+        const endpoint = id ? `${this.baseUrl}/device/getDevices?id=${id}`
+         : page ? `${this.baseUrl}/device/getDevices?page=${page}` : `${this.baseUrl}/device/getDevices`;
 
         const response = await fetch(endpoint, {
             credentials: 'include'
@@ -86,7 +86,7 @@ export class HttpClient {
     }
 
     async getDeviceCount(): Promise<number> {
-        const response = await fetch(`${this.baseUrl}/getDataSize`, {
+        const response = await fetch(`${this.baseUrl}/device/getDataSize`, {
             credentials: 'include'
         });
 
@@ -100,7 +100,7 @@ export class HttpClient {
     }
 
     async getNetworkUptime(): Promise<number> {
-        const response = await fetch(`${this.baseUrl}/getUptimeSystem`, {
+        const response = await fetch(`${this.baseUrl}/device/getUptimeSystem`, {
             credentials: 'include'
         });
 
@@ -110,21 +110,21 @@ export class HttpClient {
 //pinging and testing tcp connections
 
     async pingDevice(ipAddress: string) {
-        const response = await fetch(`${this.baseUrl}/checkDeviceConnectivity/${ipAddress}?type=ping`, {
+        const response = await fetch(`${this.baseUrl}/device/checkDeviceConnectivity/${ipAddress}?type=ping`, {
             credentials: 'include'
         });
         return await response.text();
     }
 
     async testTcpConnection(ipAddress: string, port: number) {
-        const response = await fetch(`${this.baseUrl}/checkDeviceConnectivity/${ipAddress}?type=tcp&port=${port}`, {
+        const response = await fetch(`${this.baseUrl}/device/checkDeviceConnectivity/${ipAddress}?type=tcp&port=${port}`, {
             credentials: 'include'
         });
         return await response.text();
     }
 
     async getVendorByIp(ipAddress: string) {
-    const response = await fetch(`${this.baseUrl}/getVendorByIp?ip=${encodeURIComponent(ipAddress)}`);
+    const response = await fetch(`${this.baseUrl}/device/getVendorByIp?ip=${encodeURIComponent(ipAddress)}`);
       
       if (response.ok) {
         const vendor = await response.text();
@@ -137,5 +137,42 @@ export class HttpClient {
       } else {
         throw new Error('Failed to get vendor');
       }
+    }
+
+
+    //scheduling
+    async scheduleBackup(date: Date) {
+        // Send date as ISO string but in local timezone
+        const localDateString = date.getFullYear() + '-' + 
+            String(date.getMonth() + 1).padStart(2, '0') + '-' + 
+            String(date.getDate()).padStart(2, '0') + 'T' + 
+            String(date.getHours()).padStart(2, '0') + ':' + 
+            String(date.getMinutes()).padStart(2, '0') + ':' + 
+            String(date.getSeconds()).padStart(2, '0');
+        
+        const response = await fetch(`${this.baseUrl}/scheduler/create`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({date: localDateString, jobName: 'backup'}),
+            credentials: 'include'
+        });
+        return response.ok;
+    }
+
+    async getScheduledBackups(jobName: string) {
+        const response = await fetch(`${this.baseUrl}/scheduler/exists?jobName=${jobName}`, {
+            credentials: 'include'
+        });
+        return await response.text();
+    }
+
+    async deleteScheduledBackup(jobName: string) {       
+        const response = await fetch(`${this.baseUrl}/scheduler/delete?jobName=${jobName}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+        return response.ok;
     }
 }

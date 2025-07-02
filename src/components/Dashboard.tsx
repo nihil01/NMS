@@ -16,15 +16,17 @@ import {
   CheckCircleIcon,
   SignalIcon,
   PowerIcon,
-  ClockIcon
+  ClockIcon,
+  CloudArrowDownIcon
 } from '@heroicons/react/24/outline';
 
 import { HttpClient } from '../net/HttpClient';
 import { DeviceComponent } from './DeviceComponent';
+import { ScheduleComponent } from './ScheduleComponent';
 
 const Dashboard: React.FC<{ authenticated: (isAuthenticated: boolean) => void }> = ({ authenticated }) => {
 
-  const [selectedTab, setSelectedTab] = useState<'dashboard' | 'devices' | 'network' | 'alerts'>('dashboard');
+  const [selectedTab, setSelectedTab] = useState<'dashboard' | 'devices' | 'networkMap' | 'schedule'>('dashboard');
   const [deviceCount, setDeviceCount] = useState<number>(0);
   const [networkUptime, setNetworkUptime] = useState<number>(0);
 
@@ -93,28 +95,20 @@ const Dashboard: React.FC<{ authenticated: (isAuthenticated: boolean) => void }>
         );
       case 'devices':
         return <DeviceComponent deviceCount={deviceCount} />;
-      case 'network':
+
+      case 'networkMap':
         return (
           <Card className="dashboard-card">
             <CardHeader className="pb-0">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Şəbəkə Baxışı</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Şəbəkə Xəritəsi</h3>
             </CardHeader>
             <CardBody>
-              <p className="text-gray-600 dark:text-gray-400">Şəbəkə monitorinqi funksiyaları tezliklə...</p>
+              <p className="text-gray-600 dark:text-gray-400">Şəbəkə xəritəsi funksiyaları tezliklə...</p>
             </CardBody>
           </Card>
         );
-      case 'alerts':
-        return (
-          <Card className="dashboard-card">
-            <CardHeader className="pb-0">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Sistem Xəbərdarlıqları</h3>
-            </CardHeader>
-            <CardBody>
-              <p className="text-gray-600 dark:text-gray-400">Xəbərdarlıq idarəetməsi funksiyaları tezliklə...</p>
-            </CardBody>
-          </Card>
-        );
+      case 'schedule':
+        return <ScheduleComponent />
       default:
         return null;
     }
@@ -160,10 +154,10 @@ const Dashboard: React.FC<{ authenticated: (isAuthenticated: boolean) => void }>
               Cihazlar
             </Button>
             <Button
-              onClick={() => setSelectedTab('network')}
-              variant={selectedTab === 'network' ? 'flat' : 'light'}
+              onClick={() => setSelectedTab('networkMap')}
+              variant={selectedTab === 'networkMap' ? 'flat' : 'light'}
               className={`w-full justify-start ${
-                selectedTab === 'network' 
+                selectedTab === 'networkMap' 
                   ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400' 
                   : 'text-gray-700 dark:text-gray-300'
               }`}
@@ -172,16 +166,16 @@ const Dashboard: React.FC<{ authenticated: (isAuthenticated: boolean) => void }>
               Şəbəkə
             </Button>
             <Button
-              onClick={() => setSelectedTab('alerts')}
-              variant={selectedTab === 'alerts' ? 'flat' : 'light'}
+              onClick={() => setSelectedTab('schedule')}
+              variant={selectedTab === 'schedule' ? 'flat' : 'light'}
               className={`w-full justify-start ${
-                selectedTab === 'alerts' 
+                selectedTab === 'schedule' 
                   ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400' 
                   : 'text-gray-700 dark:text-gray-300'
               }`}
-              startContent={<ExclamationTriangleIcon className="w-5 h-5" />}
+              startContent={<CloudArrowDownIcon className="w-5 h-5" />}
             >
-              Xəbərdarlıqlar
+              Backupların Planlaması
             </Button>
           </div>
         </nav>
@@ -197,8 +191,8 @@ const Dashboard: React.FC<{ authenticated: (isAuthenticated: boolean) => void }>
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
                   {selectedTab === 'dashboard' && 'Şəbəkə Baxışı'}
                   {selectedTab === 'devices' && 'Cihaz İdarəetməsi'}
-                  {selectedTab === 'network' && 'Şəbəkə Monitorinqi'}
-                  {selectedTab === 'alerts' && 'Sistem Xəbərdarlıqları'}
+                  {selectedTab === 'networkMap' && 'Şəbəkə Xəritəsi'}
+                  {selectedTab === 'schedule' && 'Backupların Planlaması'}
                 </h2>
                 <p className="text-gray-600 dark:text-gray-400">Şəbəkə infrastrukturunuzu real-time olaraq izləyin</p>
               </div>

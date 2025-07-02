@@ -354,6 +354,7 @@ export const DeviceComponent: React.FC<{ deviceCount: number }> = ({ deviceCount
                 <TableColumn>IP Ünvanı</TableColumn>
                 <TableColumn>Subnet mask</TableColumn>
                 <TableColumn>Cihazın tipi</TableColumn>
+                <TableColumn>Vendor</TableColumn>
                 <TableColumn>Məkan</TableColumn>
               </TableHeader>
               <TableBody>
@@ -400,6 +401,9 @@ export const DeviceComponent: React.FC<{ deviceCount: number }> = ({ deviceCount
                     </TableCell>
                     <TableCell>
                       {device.type}
+                    </TableCell>
+                    <TableCell className='text-center font-semibold text-blue-600'>
+                      {device.vendor}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-1 text-sm text-gray-600 dark:text-gray-400">

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,
   CardBody,
@@ -63,17 +63,18 @@ const formatBytes = (bytes: number): string => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
-// Utility function to convert packet counts to human readable format
-const formatPackets = (packets: number): string => {
-  if (packets === 0) return '0';
+// Utility function to convert byte counts to human readable format
+const formatPackets = (bytes: number): string => {
+  if (bytes === 0) return '0 B';
   
-  const k = 1000;
-  const sizes = ['', 'K', 'M', 'B'];
-  const i = Math.floor(Math.log(packets) / Math.log(k));
+  const k = 1024; // Use 1024 for binary prefixes (KB, MB, GB)
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
   
-  if (i === 0) return packets.toString();
+  // Ensure i doesn't exceed the sizes array length
+  const sizeIndex = Math.min(i, sizes.length - 1);
   
-  return parseFloat((packets / Math.pow(k, i)).toFixed(2)) + sizes[i];
+  return parseFloat((bytes / Math.pow(k, sizeIndex)).toFixed(2)) + ' ' + sizes[sizeIndex];
 };
 
 const DeviceDetailPage: React.FC<DeviceDetailPageProps> = ({ deviceId, onBack, deviceVendor }) => {
@@ -98,7 +99,7 @@ const DeviceDetailPage: React.FC<DeviceDetailPageProps> = ({ deviceId, onBack, d
 
   const [timeLeft, setTimeLeft] = useState<number>(0);
 
-  const fetchDeviceDetails = async () => {
+  const fetchDeviceDetails = useCallback(async () => {
     try {
       setIsLoading(true);
       // Fetch device details by ID
@@ -117,7 +118,7 @@ const DeviceDetailPage: React.FC<DeviceDetailPageProps> = ({ deviceId, onBack, d
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [deviceId]);
 
   useEffect(() => {
     fetchDeviceDetails();
@@ -125,21 +126,23 @@ const DeviceDetailPage: React.FC<DeviceDetailPageProps> = ({ deviceId, onBack, d
 
   useEffect(() => {
     if (device) {
-      const time = new Date().getTime();
-      let limit = 5000;
+      let timeLeft = 30; // 30 seconds countdown
+      setTimeLeft(timeLeft);
 
       const interval = setInterval(() => {
-        setTimeLeft(time - new Date().getTime());
-        limit-=1000;
+        timeLeft -= 1;
+        setTimeLeft(timeLeft);
+        
+        if (timeLeft <= 0) {
+          fetchDeviceDetails();
+          timeLeft = 30; // Reset countdown
+          setTimeLeft(timeLeft);
+        }
       }, 1000);
-
-      if (limit <= 0) {
-        fetchDeviceDetails();
-      }
 
       return () => clearInterval(interval);
     }
-  }, [device]);
+  }, [device, fetchDeviceDetails]);
 
   // Ping test handler
   const handlePingTest = async () => {
@@ -202,7 +205,8 @@ const DeviceDetailPage: React.FC<DeviceDetailPageProps> = ({ deviceId, onBack, d
   const handleDeleteDevice = async () => {
     if (!device || !device.id) return;
 
-    const result = await new HttpClient().deleteDevice(device.id);
+    const result = await new HttpClient().deleteDevice(device.id,
+       device.ipAddress, device.type);
 
     if (result) {
       alert("Cihaz silindi");
@@ -265,7 +269,7 @@ const DeviceDetailPage: React.FC<DeviceDetailPageProps> = ({ deviceId, onBack, d
           </Button>
           <div className="flex items-center space-x-3">
             <Avatar
-              src={device.imageUrl || getDeviceIcon(device.type)}
+              src={getDeviceIcon(device.type)}
               size="lg"
               className="bg-blue-100 dark:bg-blue-900/30"
             />
@@ -277,9 +281,14 @@ const DeviceDetailPage: React.FC<DeviceDetailPageProps> = ({ deviceId, onBack, d
                 {device.type} • {device.ipAddress}
               </p>
 
-              <p className="text-gray-600 dark:text-gray-400">
-                Yenilemə: {timeLeft}
-              </p>
+              <div className="flex items-center space-x-2">
+                <p className="text-gray-600 dark:text-gray-400">
+                  Avtomatik yenilənmə: {timeLeft} saniyə
+                </p>
+                {isLoading && (
+                  <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -295,9 +304,9 @@ const DeviceDetailPage: React.FC<DeviceDetailPageProps> = ({ deviceId, onBack, d
               onSelectionChange={(key) => setActiveTab(key as string)}
               color="primary"
               variant="underlined"
+              className="overflow-x-hidden"
             >
               <Tab key="overview" title="Ümumi baxış" />
-              <Tab key="performance" title="Performans" />
               <Tab key="interfaces" title="İnterfeyslər" />
             </Tabs>
           </CardHeader>
@@ -372,65 +381,21 @@ const DeviceDetailPage: React.FC<DeviceDetailPageProps> = ({ deviceId, onBack, d
               </div>
             )}
 
-            {activeTab === "performance" && (
-              <div className="space-y-6">
-                {/* CPU Usage */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-gray-900 dark:text-white">CPU İstifadəsi</h3>
-                    <span className="text-sm text-gray-600">{device.vendorData.cpuLoad || 0}%</span>
-                  </div>
-                  <Progress
-                    value={device.vendorData.cpuLoad || 0}
-                    color={(device.vendorData.cpuLoad || 0) > 80 ? 'danger' : (device.vendorData.cpuLoad || 0) > 60 ? 'warning' : 'success'}
-                    size="lg"
-                  />
-                </div>
-
-                {/* Memory Usage */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-gray-900 dark:text-white">Yaddaş İstifadəsi</h3>
-                    <span className="text-sm text-gray-600">
-                      {device.vendorData.memoryUsed > 0 ? device.vendorData.memoryUsed : 0}%
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-xs text-gray-500">
-                    <span>İstifadə olunan: {device.vendorData.memoryUsed || 0} MB</span>
-                    {/* <span>Ümumi: {device.vendorData.memoryTotal || 0} MB</span> */}
-                  </div>
-                </div>
-
-                {/* Temperature */}
-                {device.vendorData.temperature && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-semibold text-gray-900 dark:text-white">Temperatur</h3>
-                      <span className="text-sm text-gray-600">{device.vendorData.temperature}°C</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm text-gray-600">
-                        {Number(device.vendorData.temperature) > 70 ? 'Yüksək' : Number(device.vendorData.temperature) > 50 ? 'Normal' : 'Aşağı'}
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
 
             {activeTab === "interfaces" && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="font-semibold text-gray-900 dark:text-white">Şəbəkə İnterfeysləri</h3>
-                  <span className="text-xs text-gray-500">Paket sayı (K=1000, M=1M, B=1B)</span>
+                  <span className="text-xs text-gray-500">Məlumat ölçüsü (KB, MB, GB)</span>
                 </div>
                 <Table aria-label="İnterfeyslər cədvəli">
                   <TableHeader>
                     <TableColumn>İnterfeys</TableColumn>
                     <TableColumn>Status</TableColumn>
                     <TableColumn>MAC Ünvanı</TableColumn>
-                    <TableColumn>Giriş paketləri</TableColumn>
-                    <TableColumn>Çıxış paketləri</TableColumn>
+                    <TableColumn>Giriş məlumatı</TableColumn>
+                    <TableColumn>Çıxış məlumatı</TableColumn>
+                    <TableColumn>CRC Xətaları</TableColumn>
                   </TableHeader>
                   <TableBody>
                     {device.deviceNetworkInterfaces && device.deviceNetworkInterfaces.length > 0 ? 
@@ -441,6 +406,7 @@ const DeviceDetailPage: React.FC<DeviceDetailPageProps> = ({ deviceId, onBack, d
                           <TableCell>{iface.macAddress ? iface.macAddress : "Məlum deyil"}</TableCell>
                           <TableCell>{formatPackets(iface.in)}</TableCell>
                           <TableCell>{formatPackets(iface.out)}</TableCell>
+                          <TableCell>{iface.errors}</TableCell>
                         </TableRow>
                       )) : 
                       <TableRow>

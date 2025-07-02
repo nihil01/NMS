@@ -13,8 +13,6 @@ export interface DeviceResponseDTO extends Device {
   osVersion: string;        // OID: 1.3.6.1.2.1.47.1.1.1.1.10
   macAddress: string;       // Обычно собирается с интерфейсов (не по одному OID)
 
-  imageUrl: string; 
-
   deviceNetworkInterfaces: DeviceNetworkInterfaces[];
   vendorData: VendorData;
 
@@ -26,6 +24,7 @@ export interface DeviceNetworkInterfaces {
   in: number;
   out: number;
   macAddress: string;
+  errors: number;
 }
 
 export interface VendorData {
