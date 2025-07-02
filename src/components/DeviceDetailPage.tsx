@@ -49,6 +49,7 @@ import LoaderScreen from './LoaderScreen';
 interface DeviceDetailPageProps {
   deviceId: number;
   onBack: () => void;
+  deviceVendor: string;
 }
 
 // Utility function to convert bytes to human readable format
@@ -75,7 +76,7 @@ const formatPackets = (packets: number): string => {
   return parseFloat((packets / Math.pow(k, i)).toFixed(2)) + sizes[i];
 };
 
-const DeviceDetailPage: React.FC<DeviceDetailPageProps> = ({ deviceId, onBack }) => {
+const DeviceDetailPage: React.FC<DeviceDetailPageProps> = ({ deviceId, onBack, deviceVendor }) => {
   const [device, setDevice] = useState<DeviceResponseDTO>();
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<string>("overview");
@@ -95,30 +96,50 @@ const DeviceDetailPage: React.FC<DeviceDetailPageProps> = ({ deviceId, onBack })
   const [tcpPort, setTcpPort] = useState<string>('');
   const [portError, setPortError] = useState<string>('');
 
-  useEffect(() => {
-    const fetchDeviceDetails = async () => {
-      try {
-        setIsLoading(true);
-        // Fetch device details by ID
-        const deviceData = await new HttpClient().getDevices(deviceId);
+  const [timeLeft, setTimeLeft] = useState<number>(0);
 
-        console.log('Device data:', deviceData);
-        
-        if (deviceData && deviceData.length > 0) {
-          setDevice(deviceData[0]);
-        } else {
-          throw new Error('Device not found');
-        }
-      } catch (error) {
-        console.error('Failed to fetch device details:', error);
-        alert('Cihaz məlumatları yüklənərkən xəta baş verdi');
-      } finally {
-        setIsLoading(false);
+  const fetchDeviceDetails = async () => {
+    try {
+      setIsLoading(true);
+      // Fetch device details by ID
+      const deviceData = await new HttpClient().getDevices(deviceId);
+
+      console.log('Device data:', deviceData);
+      
+      if (deviceData && deviceData.length > 0) {
+        setDevice(deviceData[0]);
+      } else {
+        throw new Error('Device not found');
       }
-    };
+    } catch (error) {
+      console.error('Failed to fetch device details:', error);
+      alert('Cihaz məlumatları yüklənərkən xəta baş verdi');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchDeviceDetails();
   }, [deviceId]);
+
+  useEffect(() => {
+    if (device) {
+      const time = new Date().getTime();
+      let limit = 5000;
+
+      const interval = setInterval(() => {
+        setTimeLeft(time - new Date().getTime());
+        limit-=1000;
+      }, 1000);
+
+      if (limit <= 0) {
+        fetchDeviceDetails();
+      }
+
+      return () => clearInterval(interval);
+    }
+  }, [device]);
 
   // Ping test handler
   const handlePingTest = async () => {
@@ -255,6 +276,10 @@ const DeviceDetailPage: React.FC<DeviceDetailPageProps> = ({ deviceId, onBack })
               <p className="text-gray-600 dark:text-gray-400">
                 {device.type} • {device.ipAddress}
               </p>
+
+              <p className="text-gray-600 dark:text-gray-400">
+                Yenilemə: {timeLeft}
+              </p>
             </div>
           </div>
         </div>
@@ -290,7 +315,7 @@ const DeviceDetailPage: React.FC<DeviceDetailPageProps> = ({ deviceId, onBack })
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Vendor:</span>
-                        <span className="font-medium">{device.vendor || 'Məlum deyil'}</span>
+                        <span className="font-medium">{deviceVendor || 'Məlum deyil'}</span>
                       </div>
                     </div>
                   </div>
@@ -353,11 +378,11 @@ const DeviceDetailPage: React.FC<DeviceDetailPageProps> = ({ deviceId, onBack })
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <h3 className="font-semibold text-gray-900 dark:text-white">CPU İstifadəsi</h3>
-                    <span className="text-sm text-gray-600">{device.cpuLoad || 0}%</span>
+                    <span className="text-sm text-gray-600">{device.vendorData.cpuLoad || 0}%</span>
                   </div>
                   <Progress
-                    value={device.cpuLoad || 0}
-                    color={(device.cpuLoad || 0) > 80 ? 'danger' : (device.cpuLoad || 0) > 60 ? 'warning' : 'success'}
+                    value={device.vendorData.cpuLoad || 0}
+                    color={(device.vendorData.cpuLoad || 0) > 80 ? 'danger' : (device.vendorData.cpuLoad || 0) > 60 ? 'warning' : 'success'}
                     size="lg"
                   />
                 </div>
@@ -367,30 +392,25 @@ const DeviceDetailPage: React.FC<DeviceDetailPageProps> = ({ deviceId, onBack })
                   <div className="flex items-center justify-between">
                     <h3 className="font-semibold text-gray-900 dark:text-white">Yaddaş İstifadəsi</h3>
                     <span className="text-sm text-gray-600">
-                      {device.memoryTotal > 0 ? Math.round((device.memoryUsed / device.memoryTotal) * 100) : 0}%
+                      {device.vendorData.memoryUsed > 0 ? device.vendorData.memoryUsed : 0}%
                     </span>
                   </div>
-                  <Progress
-                    value={device.memoryTotal > 0 ? ((device.memoryUsed / device.memoryTotal) * 100) : 0}
-                    color={device.memoryTotal > 0 && ((device.memoryUsed / device.memoryTotal) * 100) > 80 ? 'danger' : device.memoryTotal > 0 && ((device.memoryUsed / device.memoryTotal) * 100) > 60 ? 'warning' : 'success'}
-                    size="lg"
-                  />
                   <div className="flex justify-between text-xs text-gray-500">
-                    <span>İstifadə olunan: {device.memoryUsed || 0} MB</span>
-                    <span>Ümumi: {device.memoryTotal || 0} MB</span>
+                    <span>İstifadə olunan: {device.vendorData.memoryUsed || 0} MB</span>
+                    {/* <span>Ümumi: {device.vendorData.memoryTotal || 0} MB</span> */}
                   </div>
                 </div>
 
                 {/* Temperature */}
-                {device.temperature && (
+                {device.vendorData.temperature && (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <h3 className="font-semibold text-gray-900 dark:text-white">Temperatur</h3>
-                      <span className="text-sm text-gray-600">{device.temperature}°C</span>
+                      <span className="text-sm text-gray-600">{device.vendorData.temperature}°C</span>
                     </div>
                     <div className="flex items-center space-x-2">
                       <span className="text-sm text-gray-600">
-                        {Number(device.temperature) > 70 ? 'Yüksək' : Number(device.temperature) > 50 ? 'Normal' : 'Aşağı'}
+                        {Number(device.vendorData.temperature) > 70 ? 'Yüksək' : Number(device.vendorData.temperature) > 50 ? 'Normal' : 'Aşağı'}
                       </span>
                     </div>
                   </div>
@@ -446,21 +466,13 @@ const DeviceDetailPage: React.FC<DeviceDetailPageProps> = ({ deviceId, onBack })
             <CardBody className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">CPU</span>
-                <span className="font-semibold">{device.cpuLoad || 0}%</span>
+                <span className="font-semibold">{device.vendorData.cpuLoad || 0}%</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Yaddaş</span>
+                <span className="text-sm text-gray-600">Istifade olunan yaddaş</span>
                 <span className="font-semibold">
-                  {device.memoryTotal > 0 ? Math.round((device.memoryUsed / device.memoryTotal) * 100) : 0}%
+                  {device.vendorData.memoryUsed > 0 ? (device.vendorData.memoryUsed / 1024 / 1024).toFixed(2) + ' MB' : 0}
                 </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Latency</span>
-                <span className="font-semibold">{device.latency ? `${device.latency}ms` : 'N/A'}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Packet Loss</span>
-                <span className="font-semibold">{device.packetLoss ? `${device.packetLoss}%` : 'N/A'}</span>
               </div>
             </CardBody>
           </Card>
@@ -484,22 +496,22 @@ const DeviceDetailPage: React.FC<DeviceDetailPageProps> = ({ deviceId, onBack })
               <h3 className="font-semibold text-gray-900 dark:text-white">Avadanlıq üzrə emeliyyatlari</h3>
             </CardHeader>
             <CardBody className="space-y-2">
-              <Button variant="bordered" startContent={<CloudArrowDownIcon className="w-4 h-4" />} onPress={() => setIsBackupModalOpen(true)}>
+              <Button variant="bordered" className="bg-lime-500 dark:bg-gray-700" startContent={<CloudArrowDownIcon className="w-4 h-4" />} onPress={() => setIsBackupModalOpen(true)}>
                 Backup'in yüklənməsi
               </Button>
               <ButtonGroup>
                 <Button 
                   variant="bordered" 
+                  className="bg-blue-300 dark:bg-gray-700 w-full"
                   startContent={<ChartBarIcon className="w-4 h-4" />}
-                  className="w-full hover:bg-gray-100 dark:hover:bg-gray-700"
                   onPress={handlePingTest}
                 >
                   Ping Testi
                 </Button>
                 <Button 
                   variant="bordered" 
+                  className="bg-blue-300 dark:bg-gray-700 w-full"
                   startContent={<WifiIcon className="w-4 h-4" />}
-                  className="w-full hover:bg-gray-100 dark:hover:bg-gray-700"
                   onPress={() => setIsTcpModalOpen(true)}
                 >
                   TCP Testi

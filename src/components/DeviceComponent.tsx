@@ -63,6 +63,7 @@ export const DeviceComponent: React.FC<{ deviceCount: number }> = ({ deviceCount
 
   const [devices, setDevices] = useState<DeviceResponseDTO[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState<number | null>(null);
+  const [deviceVendor, setDeviceVendor] = useState<string>('');
 
   // Loading states
   const [isInitialLoading, setIsInitialLoading] = useState(true);
@@ -195,10 +196,9 @@ export const DeviceComponent: React.FC<{ deviceCount: number }> = ({ deviceCount
                            device.ipAddress.includes(searchQuery) ||
                            device.place.toLowerCase().includes(searchQuery.toLowerCase());
       
-      const matchesStatus = statusFilter === 'all' || (device.reachable ? 'online' : 'offline') === statusFilter;
       const matchesType = typeFilter === 'all' || device.type.toLowerCase() === typeFilter.toLowerCase();
       
-      return matchesSearch && matchesStatus && matchesType;
+      return matchesSearch && matchesType;
     });
   }, [devices, searchQuery, statusFilter, typeFilter]);
 
@@ -217,10 +217,6 @@ export const DeviceComponent: React.FC<{ deviceCount: number }> = ({ deviceCount
     setPage(1);
   };
 
-  const handleDeviceRowClick = (deviceId: number) => {
-    setSelectedDeviceId(deviceId);
-  };
-
   const handleBackToDeviceList = () => {
     setSelectedDeviceId(null);
   };
@@ -228,7 +224,8 @@ export const DeviceComponent: React.FC<{ deviceCount: number }> = ({ deviceCount
   // If a device is selected, show the detail page
   if (selectedDeviceId !== null) {
     return (
-      <DeviceDetailPage 
+      <DeviceDetailPage
+        deviceVendor={deviceVendor}
         deviceId={selectedDeviceId} 
         onBack={handleBackToDeviceList} 
       />
@@ -363,7 +360,10 @@ export const DeviceComponent: React.FC<{ deviceCount: number }> = ({ deviceCount
                 {paginatedDevices.map((device) => (
                   <TableRow 
                     className='hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors'
-                    onClick={() => handleDeviceRowClick(device.id!)}
+                    onClick={() => {
+                      setSelectedDeviceId(device.id!)
+                      setDeviceVendor(device.vendor)
+                    }}
                     key={device.id}
                   >
                     <TableCell>
