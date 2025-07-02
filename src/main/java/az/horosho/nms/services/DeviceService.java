@@ -29,6 +29,9 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.nio.channels.AsynchronousFileChannel;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -54,30 +57,33 @@ public class DeviceService implements ServicesUtility{
     public Mono<?> addDevice(DeviceData deviceData) {
         String ip = deviceData.getIpAddress();
 
-        return calculateSubnetMask(ip)
-            .flatMap(subnet -> {
-                String subnetMask = subnet[0];
-                String gateway = subnet[1];
+    return calculateSubnetMask(ip)
+        .flatMap(subnet -> {
+            String subnetMask = subnet[0];
+            String gateway = subnet[1];
 
-                return checkDeviceReachability(gateway)
-                    .filter(Boolean::booleanValue)
-                    .switchIfEmpty(Mono.error(new UnknownHostException("Device is not reachable!")))
-                    .then(deviceRepository.findByIpAddress(ip))
-                    .flatMap(existing -> Mono.error(new IllegalArgumentException("Device with this IP already exists")))
-                    .switchIfEmpty(
-                        mapToDevice(deviceData, subnetMask, gateway)
-                            .flatMap(deviceRepository::save)
-                            .flatMap(saved -> {
-                                deviceData.setId(saved.getId());
-                                return writeInventoryFile(getHostForInventoryFile(deviceData))
-                                        .thenReturn(deviceData);
-                            })
-                    );
-            })
-            .onErrorResume(e -> {
-                System.err.println("[ERROR] addDevice failed: " + e.getMessage());
-                return Mono.error(e);
-            });
+            return checkDeviceReachability(gateway)
+                .filter(Boolean::booleanValue)
+                .switchIfEmpty(Mono.error(new UnknownHostException("Device is not reachable!")))
+                .then(deviceRepository.findByIpAddress(ip))
+                .flatMap(existing -> Mono.error(new IllegalArgumentException("Device with this IP already exists")))
+                .switchIfEmpty(
+                    mapToDevice(deviceData, subnetMask, gateway)
+                        .flatMap(saved -> {
+                            deviceData.setId(saved.getId());
+                            deviceData.setIpAddress(gateway);
+
+                            return writeInventoryFile(getHostForInventoryFile(deviceData))
+                                .then(deviceRepository.save(saved))
+                                .thenReturn(deviceData);
+                        })
+
+                );
+        })
+        .onErrorResume(e -> {
+            System.err.println("[ERROR] addDevice failed: " + e.getMessage());
+            return Mono.error(e);
+        });
     }
 
 
@@ -86,7 +92,6 @@ public class DeviceService implements ServicesUtility{
             LoaderOptions options = new LoaderOptions();
             options.setAllowDuplicateKeys(false);
             Yaml yaml = new Yaml(new Constructor(Inventory.class, options));
-
             try (FileInputStream fis = new FileInputStream(inventoryPath)) {
                 return yaml.load(fis);
             }
@@ -96,14 +101,22 @@ public class DeviceService implements ServicesUtility{
 public Mono<Void> writeInventoryFile(Host host) {
         return readInventoryFile()
             .mapNotNull(inventory -> {
+                System.out.println("Inventory read:");
+                System.out.println(inventory);
+
                 Map<String, Group> groupMap = inventory.getAll().getChildren();
-                Group group = groupMap.getOrDefault(host.getType(), null);
+                Group group = groupMap.getOrDefault(host.getType().toLowerCase(Locale.ROOT), null);
 
                 if (group == null){
-                    group = new Group();
-                    group.getHosts().put(host.getIpAddress(), host);
+                    System.out.println("Group is null, create new ...");
+                    Map<String, Host> newData = Map.of(host.getIpAddress(), host);
+                    group = new Group(newData);
+                    System.out.println("Group with new Data!");
+                    System.out.println(group);
+
                     inventory.getAll().getChildren().put(host.getType(), group);
                 } else {
+                    System.out.println("Group already exists");
                     group.getHosts().put(host.getIpAddress(), host);
                 }
 
@@ -124,9 +137,50 @@ public Mono<Void> writeInventoryFile(Host host) {
                 }
             }));
     }
-    private Host getHostForInventoryFile(DeviceData deviceData) throws IllegalArgumentException{
 
-        String ansibleNetworkOs = "";
+
+    public Mono<Void> writeInventoryFile(Inventory host) {
+        return readInventoryFile()
+                .mapNotNull(inventory -> {
+                    System.out.println("Inventory read:");
+                    System.out.println(inventory);
+
+                    Map<String, Group> groupMap = inventory.getAll().getChildren();
+                    Group group = groupMap.getOrDefault(host.getType().toLowerCase(Locale.ROOT), null);
+
+                    if (group == null){
+                        System.out.println("Group is null, create new ...");
+                        Map<String, Host> newData = Map.of(host.getIpAddress(), host);
+                        group = new Group(newData);
+                        System.out.println("Group with new Data!");
+                        System.out.println(group);
+
+                        inventory.getAll().getChildren().put(host.getType(), group);
+                    } else {
+                        System.out.println("Group already exists");
+                        group.getHosts().put(host.getIpAddress(), host);
+                    }
+
+                    return inventory;
+                })
+                .flatMap(inventory -> Mono.fromCallable(() -> {
+                    try (FileWriter writer = new FileWriter(inventoryPath)) {
+                        DumperOptions options = new DumperOptions();
+                        options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
+                        options.setPrettyFlow(true);
+
+                        Representer representer = new Representer(options);
+                        representer.addClassTag(Inventory.class, Tag.MAP);
+
+                        Yaml yaml = new Yaml(representer, options);
+                        yaml.dump(inventory, writer);
+                        return null;
+                    }
+                }));
+    }
+private Host getHostForInventoryFile(DeviceData deviceData) throws IllegalArgumentException{
+
+        String ansibleNetworkOs;
 
         if (deviceData.getVendor().toLowerCase(Locale.ROOT).contains("cisco")){
             ansibleNetworkOs = "ios";
@@ -144,14 +198,14 @@ public Mono<Void> writeInventoryFile(Host host) {
             ansibleNetworkOs = "paloalto";
         }else if (deviceData.getVendor().toLowerCase(Locale.ROOT).contains("fortinet")){
             ansibleNetworkOs = "fortinet";
-        }else if (deviceData.getVendor().toLowerCase(Locale.ROOT).contains("aruba")){
-            ansibleNetworkOs = "aruba";
         }else if (deviceData.getVendor().toLowerCase(Locale.ROOT).contains("dlink")){
             ansibleNetworkOs = "dlink";
         }else if (deviceData.getVendor().toLowerCase(Locale.ROOT).contains("nokia")){
             ansibleNetworkOs = "nokia";
         }else if (deviceData.getVendor().toLowerCase(Locale.ROOT).contains("aruba")){
             ansibleNetworkOs = "aruba_os";
+        } else {
+            ansibleNetworkOs = "";
         }
 
         if (ansibleNetworkOs.isBlank()) throw new IllegalArgumentException("Bad model!");
@@ -328,9 +382,23 @@ public Mono<Void> writeInventoryFile(Host host) {
         });
     }
 
-    public Mono<Void> deleteDevice(long id){
+    public Mono<Void> deleteDevice(long id, String ipAddress, String type){
         return deviceRepository.findById(id)
             .switchIfEmpty(Mono.error(new IllegalArgumentException("Device not found!")))
+                .then(Mono.fromRunnable(() -> {
+                    //return from inventory file
+                    return readInventoryFile().flatMap(inventory -> {
+
+                        Host host = inventory.getAll().getChildren().get(type).getHosts().getOrDefault(ipAddress,
+                                null);
+
+                        if (host == null) return Mono.error(new IllegalArgumentException("Device not found!"));
+
+                        inventory.getAll().getChildren().get(type).getHosts().remove(ipAddress);
+                        return writeInventoryFile(inventory);
+                    });
+
+                }))
             .flatMap(deviceRepository::delete)
             .then();
     }

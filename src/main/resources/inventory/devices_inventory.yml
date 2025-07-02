@@ -1,0 +1,7 @@
+all:
+  children:
+    webservers:
+      hosts: null
+    switch:
+      hosts:
+
