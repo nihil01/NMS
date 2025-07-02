@@ -4,78 +4,232 @@ import az.horosho.nms.models.db.Device;
 import az.horosho.nms.models.db.DeviceRepository;
 import az.horosho.nms.models.dto.DeviceData;
 import az.horosho.nms.models.dto.DeviceDetailedResponse;
+import az.horosho.nms.models.dto.VendorData;
+import az.horosho.nms.models.dto.ansible.Group;
+import az.horosho.nms.models.dto.ansible.Host;
+import az.horosho.nms.models.dto.ansible.Inventory;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.yaml.snakeyaml.DumperOptions;
+import org.yaml.snakeyaml.LoaderOptions;
+import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.constructor.Constructor;
+import org.yaml.snakeyaml.nodes.Tag;
+import org.yaml.snakeyaml.representer.Representer;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
+import java.io.FileInputStream;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
-public class DeviceService {
+public class DeviceService implements ServicesUtility{
 
     private final DeviceRepository deviceRepository;
     private final SnmpService snmpService;
     private final JSoupService jSoupService;
 
-    public Mono<DeviceData> addDevice(DeviceData deviceData) {
-        return calculateSubnetMask(deviceData.getIpAddress())
-            .flatMap(strings -> checkDeviceReachability(strings[1])
-                .flatMap(isReachable -> {
-                    if (isReachable) {
-                        return this.mapToDevice(deviceData, strings[0], strings[1])
+    @Value("${spring.inventory_path}")
+    private String inventoryPath;
+
+    @Value("${spring.ansible.user}")
+    private String ansibleUser;
+
+    @Value("${spring.ansible.password}")
+    private String ansiblePassword;
+
+    public Mono<?> addDevice(DeviceData deviceData) {
+        String ip = deviceData.getIpAddress();
+
+        return calculateSubnetMask(ip)
+            .flatMap(subnet -> {
+                String subnetMask = subnet[0];
+                String gateway = subnet[1];
+
+                return checkDeviceReachability(gateway)
+                    .filter(Boolean::booleanValue)
+                    .switchIfEmpty(Mono.error(new UnknownHostException("Device is not reachable!")))
+                    .then(deviceRepository.findByIpAddress(ip))
+                    .flatMap(existing -> Mono.error(new IllegalArgumentException("Device with this IP already exists")))
+                    .switchIfEmpty(
+                        mapToDevice(deviceData, subnetMask, gateway)
                             .flatMap(deviceRepository::save)
-                            .map(device -> {
-                                deviceData.setId(device.getId());
-                                return deviceData;
-                            });
-                    } else {
-                        return Mono.error(new UnknownHostException("Device is not reachable!"));
-                    }
-                }
-            )
-        );
-    }
-
-    private Mono<String[]> calculateSubnetMask(String ipAddress){
-        try {
-            String[] ipParts = ipAddress.split("/");
-
-            if (ipParts.length != 2) {
-                return Mono.error(new IllegalArgumentException("Invalid IP address format"));
-            }
-
-            String ip = ipParts[0];
-            short prefix = ipParts[1] != null ? Short.parseShort(ipParts[1]) : -1;
-
-            if (prefix < 0 || prefix > 32) {
-                return Mono.error(new IllegalArgumentException("Invalid prefix"));
-            }
-
-            int mask = 0xFFFFFFFF << (32 - prefix);
-            int octet1 = (mask >> 24) & 0xFF;
-            int octet2 = (mask >> 16) & 0xFF;
-            int octet3 = (mask >> 8) & 0xFF;
-            int octet4 = mask & 0xFF;
-
-            return Mono.just(new String[]{
-                String.format("%d.%d.%d.%d", (octet1), (octet2), (octet3), (octet4)), ip
+                            .flatMap(saved -> {
+                                deviceData.setId(saved.getId());
+                                return writeInventoryFile(getHostForInventoryFile(deviceData))
+                                        .thenReturn(deviceData);
+                            })
+                    );
+            })
+            .onErrorResume(e -> {
+                System.err.println("[ERROR] addDevice failed: " + e.getMessage());
+                return Mono.error(e);
             });
-        } catch (NumberFormatException e) {
-            return Mono.error(new RuntimeException(e));
-        }
     }
+
+
+    public Mono<Inventory> readInventoryFile() {
+        return Mono.fromCallable(() -> {
+            LoaderOptions options = new LoaderOptions();
+            options.setAllowDuplicateKeys(false);
+            Yaml yaml = new Yaml(new Constructor(Inventory.class, options));
+
+            try (FileInputStream fis = new FileInputStream(inventoryPath)) {
+                return yaml.load(fis);
+            }
+        });
+    }
+
+public Mono<Void> writeInventoryFile(Host host) {
+        return readInventoryFile()
+            .mapNotNull(inventory -> {
+                Map<String, Group> groupMap = inventory.getAll().getChildren();
+                Group group = groupMap.getOrDefault(host.getType(), null);
+
+                if (group == null){
+                    group = new Group();
+                    group.getHosts().put(host.getIpAddress(), host);
+                    inventory.getAll().getChildren().put(host.getType(), group);
+                } else {
+                    group.getHosts().put(host.getIpAddress(), host);
+                }
+
+                return inventory;
+            })
+            .flatMap(inventory -> Mono.fromCallable(() -> {
+                try (FileWriter writer = new FileWriter(inventoryPath)) {
+                    DumperOptions options = new DumperOptions();
+                    options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
+                    options.setPrettyFlow(true);
+
+                    Representer representer = new Representer(options);
+                    representer.addClassTag(Inventory.class, Tag.MAP);
+
+                    Yaml yaml = new Yaml(representer, options);
+                    yaml.dump(inventory, writer);
+                    return null;
+                }
+            }));
+    }
+    private Host getHostForInventoryFile(DeviceData deviceData) throws IllegalArgumentException{
+
+        String ansibleNetworkOs = "";
+
+        if (deviceData.getVendor().toLowerCase(Locale.ROOT).contains("cisco")){
+            ansibleNetworkOs = "ios";
+        }else if (deviceData.getVendor().toLowerCase(Locale.ROOT).contains("juniper")){
+            ansibleNetworkOs = "junos";
+        }else if (deviceData.getVendor().toLowerCase(Locale.ROOT).contains("alcatel")){
+            ansibleNetworkOs = "alcatel_aos";
+        }else if (deviceData.getVendor().toLowerCase(Locale.ROOT).contains("huawei")){
+            ansibleNetworkOs = "huawei";
+        }else if (deviceData.getVendor().toLowerCase(Locale.ROOT).contains("mikrotik")){
+            ansibleNetworkOs = "mikrotik";
+        }else if (deviceData.getVendor().toLowerCase(Locale.ROOT).contains("extreme")){
+            ansibleNetworkOs = "extreme";
+        }else if (deviceData.getVendor().toLowerCase(Locale.ROOT).contains("palo")){
+            ansibleNetworkOs = "paloalto";
+        }else if (deviceData.getVendor().toLowerCase(Locale.ROOT).contains("fortinet")){
+            ansibleNetworkOs = "fortinet";
+        }else if (deviceData.getVendor().toLowerCase(Locale.ROOT).contains("aruba")){
+            ansibleNetworkOs = "aruba";
+        }else if (deviceData.getVendor().toLowerCase(Locale.ROOT).contains("dlink")){
+            ansibleNetworkOs = "dlink";
+        }else if (deviceData.getVendor().toLowerCase(Locale.ROOT).contains("nokia")){
+            ansibleNetworkOs = "nokia";
+        }else if (deviceData.getVendor().toLowerCase(Locale.ROOT).contains("aruba")){
+            ansibleNetworkOs = "aruba_os";
+        }
+
+        if (ansibleNetworkOs.isBlank()) throw new IllegalArgumentException("Bad model!");
+
+        return Host.builder()
+            .type(deviceData.getType())
+            .location(deviceData.getPlace())
+            .ipAddress(deviceData.getIpAddress())
+            .ansible_connection("network_cli")
+            .ansible_network_os(ansibleNetworkOs)
+            .ansible_user(ansibleUser)
+            .ansible_password(ansiblePassword)
+            .build();
+    }
+
     private Mono<Boolean> checkDeviceReachability(String ipAddress) {
         return Mono.fromCallable(() -> {
             InetAddress address = InetAddress.getByName(ipAddress);
-            return address.isReachable(2000);
+            return address.isReachable(3000);
+        }).subscribeOn(Schedulers.boundedElastic());
+    }
+
+    public Mono<String> checkDeviceConnectivity(String ipAddress, String checkType, Integer port){
+        return Mono.fromCallable(() -> {
+            if (checkType.equals("ping")){
+                try{
+                    int pingCount = 5;
+                    InetAddress inetAddress = InetAddress.getByName(ipAddress);
+                    int lost = 0, sent = 0;
+                    StringBuilder builder = new StringBuilder();
+                    builder.append("Pinging ").append(ipAddress).append(" with 32 bytes of data:\n");
+
+                    while(pingCount > 0){
+                        long currentTime = System.currentTimeMillis();
+                        boolean isReachable = inetAddress.isReachable(2000);
+                        if (isReachable){
+                            builder.append("Reply from ").append(ipAddress)
+                                    .append(":").append(" bytes=32").append(" time=")
+                                    .append(System.currentTimeMillis() - currentTime).append("ms TTL=64\n");
+                            sent ++;
+                        }else{
+                            builder.append("Destination host unreachable.\n");
+                            lost ++;
+                        }
+                        pingCount --;
+                    }
+
+                    builder.append("\nPing statistics for ").append(ipAddress)
+                            .append(":\n").append("Lost: ").append(lost).append(" Sent: ").append(sent);
+
+                    System.out.println(builder);
+                    return builder.toString();
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }else {
+                int segmentCount = 5;
+                int timeout = 1500;
+
+                StringBuilder sb = new StringBuilder();
+                sb.append("Testing ").append(ipAddress).append(" with ").append("port ").append(port).append(" ")
+                        .append(segmentCount).append(" TCP segments:\n");
+                while (segmentCount > 0){
+                    try(Socket socket = new Socket()){
+                        long currentTime = System.currentTimeMillis();
+
+                        socket.connect(new InetSocketAddress(ipAddress, port), timeout);
+                        sb.append("TCP segment #").append(segmentCount).append(": ").append("OK | time=")
+                                .append(System.currentTimeMillis() - currentTime).append("ms\n");
+
+                    } catch (IOException e) {
+                        sb.append("TCP segment #").append(segmentCount).append(": ").append("FAILED\n");
+                    }
+
+                    segmentCount --;
+                }
+                return sb.toString();
+            }
         }).subscribeOn(Schedulers.boundedElastic());
     }
 
@@ -96,7 +250,8 @@ public class DeviceService {
                 .map(this::mapEntityToDeviceData)
                 .flatMap(deviceData -> {
                     //1) retrieve device SNMPv2 data
-                    Mono<DeviceDetailedResponse> deviceDetailedResponse = snmpService.resolveSnmpRequest(deviceData.getIpAddress());
+                    Mono<DeviceDetailedResponse> deviceDetailedResponse = snmpService
+                            .resolveSnmpRequest(deviceData.getIpAddress());
 
                     return Mono.zip(Mono.just(deviceData), deviceDetailedResponse)
                         .flatMap(tuple -> {
@@ -149,17 +304,19 @@ public class DeviceService {
         deviceData.setPlace(device.getPlace());
         deviceData.setType(device.getType());
         deviceData.setMask(device.getMask());
+        deviceData.setVendor(device.getVendor());
         return deviceData;
     }
 
     private Mono<Device> mapToDevice(DeviceData deviceData, String subnetMask, String ipAddress) {
         return Mono.just(Device.builder()
-                .mask(subnetMask)
-                .ipAddress(ipAddress)
-                .name(deviceData.getName())
-                .place(deviceData.getPlace())
-                .type(deviceData.getType())
-                .build());
+            .mask(subnetMask)
+            .ipAddress(ipAddress)
+            .name(deviceData.getName())
+            .place(deviceData.getPlace())
+            .type(deviceData.getType())
+            .vendor(deviceData.getVendor())
+            .build());
     }
 
     public Mono<Map<String, Long>> getDevicesSize() {
@@ -169,5 +326,12 @@ public class DeviceService {
                 data.put("size", count);
                 return data;
         });
+    }
+
+    public Mono<Void> deleteDevice(long id){
+        return deviceRepository.findById(id)
+            .switchIfEmpty(Mono.error(new IllegalArgumentException("Device not found!")))
+            .flatMap(deviceRepository::delete)
+            .then();
     }
 }

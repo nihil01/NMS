@@ -29,4 +29,6 @@ public class Device {
 
     private String mask;
 
+    private String vendor;
+
 }

@@ -16,5 +16,6 @@ public class DeviceData{
     private String place;
     private Boolean reachable;
     private String mask;
+    private String vendor;
 
 }

@@ -17,7 +17,7 @@ public class JSoupService {
     public Mono<String> getImageSrcUrlByModelName(String model) {
         return Mono.fromCallable(() -> {
             try {
-                String searchQuery = "switch " + model + " site:duckduckgo.com";
+                String searchQuery = "switch " + model;
                 String url = "https://duckduckgo.com/?q=" + searchQuery.replace(" ", "+") + "&iax=images&ia=images";
 
                 Document doc = Jsoup.connect(url)
@@ -29,6 +29,7 @@ public class JSoupService {
 
                 if (image != null) {
                     String src = image.attr("src");
+                    System.out.println("image src attribute " + src);
                     if (!src.startsWith("http")) {
                         src = "https:" + src;
                     }

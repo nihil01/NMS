@@ -1,6 +1,12 @@
 spring:
 
   password_auth: "@dminDvx2025!@"
+  backup_path: "/backups"
+  inventory_path: "C:\\Users\\Orkhan\\Desktop\\NSM_DVX\\server\\NMS\\src\\main\\resources\\inventory\\devices_inventory.yml"
+
+  ansible:
+    user: orxan.n
+    password: 0Rx@n2o25!
 
   snmp:
     community: netadmin
