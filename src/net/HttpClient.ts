@@ -38,13 +38,8 @@ export class HttpClient {
         }
     }
 
-
     // ================================
-    // ================================
-
-
-
-
+        
     async uploadDevice(device: Device) {
         const response = await fetch(`${this.baseUrl}/device/uploadDevice`, {
             method: 'POST',
@@ -141,21 +136,19 @@ export class HttpClient {
 
 
     //scheduling
-    async scheduleBackup(date: Date) {
-        // Send date as ISO string but in local timezone
-        const localDateString = date.getFullYear() + '-' + 
-            String(date.getMonth() + 1).padStart(2, '0') + '-' + 
-            String(date.getDate()).padStart(2, '0') + 'T' + 
-            String(date.getHours()).padStart(2, '0') + ':' + 
-            String(date.getMinutes()).padStart(2, '0') + ':' + 
-            String(date.getSeconds()).padStart(2, '0');
-        
+    async scheduleBackup(date: {day: number, hour: number, minute: number}) {
+        // Send date as ISO string but in local timezone        
         const response = await fetch(`${this.baseUrl}/scheduler/create`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({date: localDateString, jobName: 'backup'}),
+            body: JSON.stringify({
+                day: date.day,
+                hour: date.hour,
+                minute: date.minute,
+                jobName: 'backup'
+            }),
             credentials: 'include'
         });
         return response.ok;
@@ -174,5 +167,14 @@ export class HttpClient {
             credentials: 'include'
         });
         return response.ok;
+    }
+
+    //ansible logs
+    async getAnsibleLogs(): Promise<string[]> {
+        const response = await fetch(`${this.baseUrl}/device/obtainAnsibleLog`, {
+            credentials: 'include'
+        });
+
+        return await response.json();
     }
 }

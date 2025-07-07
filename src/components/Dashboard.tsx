@@ -13,6 +13,7 @@ import {
   ServerIcon, 
   WifiIcon, 
   ExclamationTriangleIcon,
+  PaperClipIcon,
   CheckCircleIcon,
   SignalIcon,
   PowerIcon,
@@ -23,10 +24,11 @@ import {
 import { HttpClient } from '../net/HttpClient';
 import { DeviceComponent } from './DeviceComponent';
 import { ScheduleComponent } from './ScheduleComponent';
+import AnsibleLogsComponent from './AnsibleLogsComponent';
 
 const Dashboard: React.FC<{ authenticated: (isAuthenticated: boolean) => void }> = ({ authenticated }) => {
 
-  const [selectedTab, setSelectedTab] = useState<'dashboard' | 'devices' | 'networkMap' | 'schedule'>('dashboard');
+  const [selectedTab, setSelectedTab] = useState<'dashboard' | 'devices' | 'networkMap' | 'schedule' | 'ansibleLogs'>('dashboard');
   const [deviceCount, setDeviceCount] = useState<number>(0);
   const [networkUptime, setNetworkUptime] = useState<number>(0);
 
@@ -107,6 +109,10 @@ const Dashboard: React.FC<{ authenticated: (isAuthenticated: boolean) => void }>
             </CardBody>
           </Card>
         );
+
+      case 'ansibleLogs':
+        return <AnsibleLogsComponent />
+
       case 'schedule':
         return <ScheduleComponent />
       default:
@@ -176,6 +182,18 @@ const Dashboard: React.FC<{ authenticated: (isAuthenticated: boolean) => void }>
               startContent={<CloudArrowDownIcon className="w-5 h-5" />}
             >
               Backupların Planlaması
+            </Button>
+            <Button
+              onClick={() => setSelectedTab('ansibleLogs')}
+              variant={selectedTab === 'ansibleLogs' ? 'flat' : 'light'}
+              className={`w-full justify-start ${
+                selectedTab === 'ansibleLogs' 
+                  ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400' 
+                  : 'text-gray-700 dark:text-gray-300'
+              }`}
+              startContent={<PaperClipIcon className="w-5 h-5" />}
+            >
+              Ansible Logs
             </Button>
           </div>
         </nav>

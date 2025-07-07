@@ -1,28 +1,32 @@
 import React, { useEffect } from "react";
-import { Button, Calendar, Card, CardBody, CardFooter, CardHeader, DateValue, Divider, TimeInput, TimeInputValue } from "@heroui/react";
-import { today, getLocalTimeZone, parseAbsoluteToLocal, now } from "@internationalized/date";
+import { Button, Card, CardBody, CardFooter, CardHeader, Divider, Select, SelectItem, TimeInput, TimeInputValue } from "@heroui/react";
+import { now, getLocalTimeZone } from "@internationalized/date";
 import { HttpClient } from "../net/HttpClient";
 
 export const ScheduleComponent: React.FC = () => {
-    let [dateValue, setDateValue] = React.useState<DateValue | null>(today(getLocalTimeZone()));
+    let [selectedDay, setSelectedDay] = React.useState<number>(0);
     let [timeValue, setTimeValue] = React.useState<TimeInputValue | null>(now(getLocalTimeZone()));
 
-    let [date, setDate] = React.useState<Date | null>(new Date());
+    let [date, setDate] = React.useState<{
+        day: number;
+        hour: number;
+        minute: number;
+    }>();
+
     let [scheduledBackups, setScheduledBackups] = React.useState<string>("");
 
-    // Update date display whenever dateValue or timeValue changes
+    // // Update date display whenever selectedDay or timeValue changes
     useEffect(() => {
-        if (dateValue && timeValue) {
-            // Create date in local timezone
-            const newDate = new Date(dateValue.year, dateValue.month - 1, dateValue.day, timeValue.hour, timeValue.minute, timeValue.second, timeValue.millisecond);
-            setDate(newDate);
-        } else if (dateValue) {
-            // If only date is available, use current time
-            const now = new Date();
-            const newDate = new Date(dateValue.year, dateValue.month - 1, dateValue.day, now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
-            setDate(newDate);
+        if (selectedDay && timeValue) {
+            // Get the next occurrence of the selected day of week
+            setDate({
+                day: selectedDay,
+                hour: timeValue.hour,
+                minute: timeValue.minute
+            });
         }
-    }, [dateValue, timeValue]);
+    }, [selectedDay, timeValue]);
+
 
     const getScheduledBackups = async () => {
         const scheduledBackup = await new HttpClient().getScheduledBackups('backup');
@@ -46,11 +50,7 @@ export const ScheduleComponent: React.FC = () => {
 
         const handleSubmit = () => {
             if (date) {
-                if (date.getTime() <= new Date().getTime()) {
-                    alert("Vaxt seçimi gələcək tarix olmalıdır");
-                    return;
-                }
-                
+                console.log(date);
                 new HttpClient().scheduleBackup(date).then(res => {
                     if (res) {
                         alert("Backup planlandı");
@@ -58,6 +58,7 @@ export const ScheduleComponent: React.FC = () => {
                         alert("Backup planlaması mümkün deyil");
                     }
                 });
+
             }
         }
 
@@ -71,15 +72,27 @@ export const ScheduleComponent: React.FC = () => {
                     </CardHeader>
                     <CardBody className="flex flex-col lg:flex-row gap-6 justify-center items-start p-6">
                         <div className="flex-1">
-                            <Calendar 
-                                className="w-full" 
-                                value={dateValue} 
-                                onChange={setDateValue}
-                                classNames={{
-                                    base: "border-2 border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors",
-                                    content: "bg-white"
+                            <Select
+                                placeholder="Gün seçin"
+                                selectedKeys={[selectedDay]}
+                                onSelectionChange={(keys) => {
+                                    const selected = Array.from(keys)[0] as number;
+                                    setSelectedDay(selected);
                                 }}
-                            />
+                                classNames={{
+                                    base: "w-full",
+                                    trigger: "border-2 border-gray-200 rounded-lg hover:border-blue-300 focus:border-blue-500 transition-colors",
+                                    label: "text-gray-700 font-medium"
+                                }}
+                            >
+                                <SelectItem key="1">Bazar günü</SelectItem>
+                                <SelectItem key="2">Bazar ertəsi</SelectItem>
+                                <SelectItem key="3">Çərşənbə axşamı</SelectItem>
+                                <SelectItem key="4">Çərşənbə</SelectItem>
+                                <SelectItem key="5">Cümə axşamı</SelectItem>
+                                <SelectItem key="6">Cümə</SelectItem>
+                                <SelectItem key="7">Şənbə</SelectItem>
+                            </Select>
                         </div>
                         <div className="flex-1">
                             <TimeInput 
@@ -90,7 +103,7 @@ export const ScheduleComponent: React.FC = () => {
                                 hourCycle={24}
                                 classNames={{
                                     base: "w-full",
-                                    input: "border-2 border-gray-200 rounded-lg hover:border-blue-300 focus:border-blue-500 transition-colors",
+                                    input: "border-2 border-gray-200 rounded-lg hover:border-blue-300 focus:border-blue-500 transition-colors text-lg py-3",
                                     label: "text-gray-700 font-medium"
                                 }}
                             />
@@ -100,13 +113,7 @@ export const ScheduleComponent: React.FC = () => {
                         <div className="flex items-center space-x-2">
                             <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
                             <p className="text-sm text-gray-600 font-medium">
-                                {date ? date.toLocaleString('az-AZ', {
-                                    year: 'numeric',
-                                    month: 'long',
-                                    day: 'numeric',
-                                    hour: '2-digit',
-                                    minute: '2-digit'
-                                }) : 'Tarix seçilmədi'}
+                             
                             </p>
                         </div>
                         <Button 
