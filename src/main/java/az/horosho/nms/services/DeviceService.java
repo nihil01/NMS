@@ -29,10 +29,9 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -49,6 +48,9 @@ public class DeviceService implements ServicesUtility{
 
     @Value("${spring.ansible.password}")
     private String ansiblePassword;
+
+    @Value("${spring.inventory_log_path}")
+    private String logPath;
 
     public Mono<?> addDevice(DeviceData deviceData) {
         String ip = deviceData.getIpAddress();
@@ -356,5 +358,17 @@ public class DeviceService implements ServicesUtility{
                     group.getHosts().remove(ipAddress);
                     return this.saveFile(inventory);
                 })));
+    }
+
+    public Mono<List<String>> obtainAnsibleOutputLogFile(){
+        return Mono.fromCallable(() -> {
+            if (Files.exists(Path.of(logPath))){
+                return Files.readAllLines(Path.of(logPath));
+            }
+
+            return Collections.<String>emptyList();
+
+
+        }).subscribeOn(Schedulers.boundedElastic());
     }
 }

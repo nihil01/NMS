@@ -16,6 +16,7 @@ import reactor.core.publisher.Mono;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -141,6 +142,11 @@ public class DeviceController {
             }
 
             return snmpService.getVendorByInterfaceMac(ip);
+        }
+
+        @GetMapping("/obtainAnsibleLog")
+        Mono<List<String>> obtainAnsibleLog(){
+            return deviceService.obtainAnsibleOutputLogFile();
         }
 
 }

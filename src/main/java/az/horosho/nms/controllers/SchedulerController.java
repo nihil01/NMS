@@ -17,7 +17,7 @@ public class SchedulerController {
     @PostMapping("/create")
     public Mono<String> createJob(@RequestBody DateDTO dateDTO) {
         System.out.println(dateDTO);
-        return schedulerService.scheduleBackupJob(dateDTO.jobName(), dateDTO.date())
+        return schedulerService.scheduleBackupJob(dateDTO.jobName(), dateDTO)
                 .thenReturn("Job created with name: " + dateDTO.jobName());
     }
 

@@ -1,13 +1,11 @@
 package az.horosho.nms.services;
 
-import az.horosho.nms.models.SchedulerBackupJob;
+import az.horosho.nms.models.dto.SchedulerBackupJob;
+import az.horosho.nms.models.dto.DateDTO;
 import lombok.RequiredArgsConstructor;
 import org.quartz.*;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
-
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 
 import static org.quartz.JobBuilder.newJob;
 
@@ -16,28 +14,17 @@ import static org.quartz.JobBuilder.newJob;
 public class SchedulerService {
     private final Scheduler getScheduler;
 
-    public String dateToCronExpression(String date) {
-        System.out.println(date);
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-        LocalDateTime localDateTime = LocalDateTime.parse(date.replace("T", " "), formatter);
-
-        int second = localDateTime.getSecond();
-        int minute = localDateTime.getMinute();
-        int hour = localDateTime.getHour();
-        int dayOfWeek = localDateTime.getDayOfWeek().getValue(); // 1 = Monday, 7 = Sunday
-
-        // Quartz считает Sunday = 1, а Java Sunday = 7
-        dayOfWeek = (dayOfWeek == 7) ? 1 : dayOfWeek + 1;
-
-        // Формируем cron
-        return String.format("%d %d %d ? * %d", second, minute, hour, dayOfWeek);
+    public String dateToCronExpression(DateDTO dateData) {
+        System.out.println(dateData);
+        return String.format("%d %d %d ? * %d",
+                0, dateData.minute(), dateData.hour(), dateData.day());
     }
 
 
-    public Mono<Void> scheduleBackupJob(String jobName, String cronExpression) {
+    public Mono<Void> scheduleBackupJob(String jobName, DateDTO dateData) {
         return Mono.fromRunnable(() -> {
             try {
-                String cron = dateToCronExpression(cronExpression);
+                String cron = dateToCronExpression(dateData);
                 System.out.println("Cron expression is: " + cron);
 
                 if (!jobName.equalsIgnoreCase("backup")) return;

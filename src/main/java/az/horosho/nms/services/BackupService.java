@@ -13,7 +13,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.Comparator;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -70,22 +69,25 @@ public class BackupService {
     }
 
     private static ZipOutputStream getZipOutputStream(List<Path> paths, FileOutputStream fos) throws IOException {
-        ZipOutputStream zipOut = new ZipOutputStream(fos);
 
-        for (Path path : paths) {
-            File fileToZip = new File(path.toString());
-            try(FileInputStream fis = new FileInputStream(fileToZip)) {
-                ZipEntry zipEntry = new ZipEntry(fileToZip.getName());
-                zipOut.putNextEntry(zipEntry);
+        try(ZipOutputStream zipOut = new ZipOutputStream(fos)){
+            for (Path path : paths) {
+                File fileToZip = new File(path.toString());
+                try(FileInputStream fis = new FileInputStream(fileToZip)) {
+                    ZipEntry zipEntry = new ZipEntry(fileToZip.getName());
+                    zipOut.putNextEntry(zipEntry);
 
-                byte[] bytes = new byte[1024];
-                int length;
-                while ((length = fis.read(bytes)) >= 0) {
-                    zipOut.write(bytes, 0, length);
+                    byte[] bytes = new byte[1024];
+                    int length;
+                    while ((length = fis.read(bytes)) >= 0) {
+                        zipOut.write(bytes, 0, length);
+                    }
                 }
             }
+            return zipOut;
         }
-        return zipOut;
+
+
     }
 
     public Flux<Path> readSpecifiedLocation(String location, String ipAddress) {

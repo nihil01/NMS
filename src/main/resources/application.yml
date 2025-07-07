@@ -2,7 +2,12 @@ spring:
 
   password_auth: "@dminDvx2025!@"
   backup_path: "/backups"
+
   inventory_path: "C:\\Users\\orkhan\\Desktop\\nms_server\\nms\\src\\main\\resources\\inventory\\devices_inventory.yml"
+  inventory_log_path: "C:\\Users\\orkhan\\Desktop\\nms_server\\nms\\src\\main\\resources\\inventory\\devices_inventory.log"
+  playbook_path: "some_path2"
+
+  python_venv_path: "some_path"
 
   ansible:
     user: orxan.n

@@ -1,4 +1,9 @@
 package az.horosho.nms.models.dto;
 
-public record DateDTO(String date, String jobName) {
+public record DateDTO(
+    Integer day,
+    Integer hour,
+    Integer minute,
+    String jobName
+) {
 }

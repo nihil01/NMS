@@ -1,0 +1,55 @@
+
+PLAY [Get configuration from various devices, structure it in folders hierarchy] ***
+
+TASK [Get device configuration dynamically] ************************************
+[0;32mok: [10.167.10.1][0m
+[0;32mok: [10.167.10.2][0m
+
+TASK [Check if device_configs category exists] *********************************
+[0;32mok: [10.167.10.1][0m
+[0;32mok: [10.167.10.2][0m
+
+TASK [Create device_configs directory if not exists] ***************************
+[0;36mskipping: [10.167.10.1][0m
+[0;36mskipping: [10.167.10.2][0m
+
+TASK [Check if service directory exists] ***************************************
+[0;32mok: [10.167.10.2][0m
+[0;32mok: [10.167.10.1][0m
+
+TASK [Create service directory if not exists] **********************************
+[0;36mskipping: [10.167.10.1][0m
+[0;36mskipping: [10.167.10.2][0m
+
+TASK [Set final directory path] ************************************************
+[0;32mok: [10.167.10.1][0m
+[0;32mok: [10.167.10.2][0m
+
+TASK [Generate datetime] *******************************************************
+[0;32mok: [10.167.10.1][0m
+[0;32mok: [10.167.10.2][0m
+
+TASK [Save config to a file] ***************************************************
+[0;33mchanged: [10.167.10.1][0m
+[0;33mchanged: [10.167.10.2][0m
+
+TASK [Get list of .cfg files in a directory] ***********************************
+[0;32mok: [10.167.10.2][0m
+[0;32mok: [10.167.10.1][0m
+
+TASK [Sort by modification time (oldest first)] ********************************
+[0;32mok: [10.167.10.1][0m
+[0;32mok: [10.167.10.2][0m
+
+TASK [Determine files to delete] ***********************************************
+[0;32mok: [10.167.10.1][0m
+[0;32mok: [10.167.10.2][0m
+
+TASK [Remove oldest files if more than 3 exist] ********************************
+[0;33mchanged: [10.167.10.1 -> localhost] => (item={'path': 'device_configs/DVX_Esas/10.167.10.1(Aruba___07_07_2025__12_12).cfg', 'mode': '0664', 'isdir': False, 'ischr': False, 'isblk': False, 'isreg': True, 'isfifo': False, 'islnk': False, 'issock': False, 'uid': 1000, 'gid': 1000, 'size': 19075, 'inode': 15102556, 'dev': 66306, 'nlink': 1, 'atime': 1751875990.9679809, 'mtime': 1751875940.5249765, 'ctime': 1751875940.7169766, 'gr_name': 'orkhan', 'pw_name': 'orkhan', 'wusr': True, 'rusr': True, 'xusr': False, 'wgrp': True, 'rgrp': True, 'xgrp': False, 'woth': False, 'roth': True, 'xoth': False, 'isuid': False, 'isgid': False})[0m
+[0;32mok: [10.167.10.2 -> localhost] => (item={'path': 'device_configs/DVX_Esas/10.167.10.1(Aruba___07_07_2025__12_12).cfg', 'mode': '0664', 'isdir': False, 'ischr': False, 'isblk': False, 'isreg': True, 'isfifo': False, 'islnk': False, 'issock': False, 'uid': 1000, 'gid': 1000, 'size': 19075, 'inode': 15102556, 'dev': 66306, 'nlink': 1, 'atime': 1751875990.9679809, 'mtime': 1751875940.5249765, 'ctime': 1751875940.7169766, 'gr_name': 'orkhan', 'pw_name': 'orkhan', 'wusr': True, 'rusr': True, 'xusr': False, 'wgrp': True, 'rgrp': True, 'xgrp': False, 'woth': False, 'roth': True, 'xoth': False, 'isuid': False, 'isgid': False})[0m
+
+PLAY RECAP *********************************************************************
+[0;33m10.167.10.1[0m                : [0;32mok=10  [0m [0;33mchanged=2   [0m unreachable=0    failed=0    [0;36mskipped=2   [0m rescued=0    ignored=0   
+[0;33m10.167.10.2[0m                : [0;32mok=10  [0m [0;33mchanged=1   [0m unreachable=0    failed=0    [0;36mskipped=2   [0m rescued=0    ignored=0   
+
