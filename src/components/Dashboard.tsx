@@ -13,6 +13,8 @@ import {
   ServerIcon, 
   WifiIcon, 
   ExclamationTriangleIcon,
+  ArrowRightCircleIcon,
+  ArrowLeftCircleIcon,
   PaperClipIcon,
   CheckCircleIcon,
   SignalIcon,
@@ -31,6 +33,7 @@ const Dashboard: React.FC<{ authenticated: (isAuthenticated: boolean) => void }>
   const [selectedTab, setSelectedTab] = useState<'dashboard' | 'devices' | 'networkMap' | 'schedule' | 'ansibleLogs'>('dashboard');
   const [deviceCount, setDeviceCount] = useState<number>(0);
   const [networkUptime, setNetworkUptime] = useState<number>(0);
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
 
   useEffect(() => {
     const fetchDeviceCount = async () => {
@@ -123,7 +126,7 @@ const Dashboard: React.FC<{ authenticated: (isAuthenticated: boolean) => void }>
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
       {/* Sidebar */}
-      <div className="w-64 bg-white dark:bg-gray-800 shadow-lg">
+      <div className={`w-64 bg-white dark:bg-gray-800 shadow-lg ${isSidebarOpen ? 'block' : 'hidden'} transition-all duration-300`}>
         <div className="p-6">
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
@@ -133,7 +136,7 @@ const Dashboard: React.FC<{ authenticated: (isAuthenticated: boolean) => void }>
           </div>
         </div>
         
-        <nav className="mt-6">
+        <nav className={`mt-6 `}>
           <div className="px-4 space-y-2">
             <Button
               onClick={() => setSelectedTab('dashboard')}
@@ -233,6 +236,11 @@ const Dashboard: React.FC<{ authenticated: (isAuthenticated: boolean) => void }>
         <main className="flex-1 overflow-y-auto p-6">
           {renderContent()}
         </main>
+
+        <div className="flex justify-center mt-6 font-bold text-gray-600 dark:text-gray-400 absolute bottom-0 left-0">
+            <Button title='Paneli gizletmek' onClick={() => setIsSidebarOpen(!isSidebarOpen)}>{isSidebarOpen ? <ArrowLeftCircleIcon className="w-5 h-5" /> : <ArrowRightCircleIcon className="w-5 h-5" />}</Button>
+        </div>
+
       </div>
     </div>
   );

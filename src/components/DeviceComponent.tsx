@@ -4,7 +4,6 @@ import {
   CardBody, 
   CardHeader,
   Button,
-  Chip,
   Table,
   TableHeader,
   TableColumn,
@@ -24,8 +23,6 @@ import {
 } from '@heroui/react';
 
 import { 
-  CheckCircleIcon,
-  XCircleIcon,
   PlusIcon,
   MapPinIcon,
   MagnifyingGlassIcon,
@@ -37,6 +34,7 @@ import type { Device } from '../data/dtoInterfaces';
 import type { DeviceResponseDTO } from '../data/dtoInterfaces';
 import LoaderScreen from './LoaderScreen';
 import DeviceDetailPage from './DeviceDetailPage';
+import { log } from 'console';
 
 
 // Device Type Icons
@@ -78,7 +76,8 @@ export const DeviceComponent: React.FC<{ deviceCount: number }> = ({ deviceCount
   
   // Pagination states
   const [page, setPage] = useState(1);
-  const rowsPerPage = 10;
+  const [totalPages, setTotalPages] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -99,14 +98,24 @@ export const DeviceComponent: React.FC<{ deviceCount: number }> = ({ deviceCount
 
         // Fetch devices and count in parallel
         const devicesData = await new HttpClient().getDevices();
+        console.log("Initial devices fetched:")
+        console.log(devicesData);
+
+        console.log("Devices count:")
+        console.log(deviceCount);
 
         setDevices(devicesData);
+        setTotalPages(Math.ceil(deviceCount / rowsPerPage));   
         
+        console.log("Total pages:")
+        console.log(Math.ceil(deviceCount / rowsPerPage));
+
         // Complete loading
         setLoadingProgress(100);
         setTimeout(() => {
           setIsInitialLoading(false);
         }, 300);
+
       } catch (error) {
         console.error('Failed to fetch initial data:', error);
         setIsInitialLoading(false);
@@ -122,8 +131,8 @@ export const DeviceComponent: React.FC<{ deviceCount: number }> = ({ deviceCount
       
       try {
         setIsPaginationLoading(true);
-        const data = await new HttpClient().getDevices(page);
-        setDevices(data);
+        const data = await new HttpClient().getDevices(0, page);
+        setDevices([...devices, ...data]);
       } catch (error) {
         console.error('Failed to fetch devices:', error);
       } finally {
@@ -133,6 +142,7 @@ export const DeviceComponent: React.FC<{ deviceCount: number }> = ({ deviceCount
 
     fetchDevices();
   }, [page]);
+
 
   const handleAddDevice = async () => {
     try {
@@ -418,19 +428,78 @@ export const DeviceComponent: React.FC<{ deviceCount: number }> = ({ deviceCount
           </div>
 
           {/* Pagination */}
-          {pages > 1 && (
-            <div className="flex justify-center mt-6">
+          <div className="flex justify-center mt-6">
+            <div className="flex items-center gap-4">
               <Pagination
-                total={pages}
+                total={totalPages}
                 page={page}
                 onChange={setPage}
                 showControls
+                showShadow
+                siblings={1}
+                boundaries={1}
                 color="primary"
                 size="sm"
                 isDisabled={isPaginationLoading}
+                className="flex-shrink-0"
               />
+              
+              {/* Page Input for Direct Navigation */}
+              {totalPages > 10 && (
+                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                  <span>Səhifə:</span>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={totalPages}
+                    value={page.toString()}
+                    onChange={(e) => {
+                      const newPage = parseInt(e.target.value);
+                      if (newPage >= 1 && newPage <= totalPages) {
+                        setPage(newPage);
+                      }
+                    }}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        const newPage = parseInt(e.currentTarget.value);
+                        if (newPage >= 1 && newPage <= totalPages) {
+                          setPage(newPage);
+                        }
+                      }
+                    }}
+                    size="sm"
+                    className="w-16"
+                    variant="bordered"
+                    isDisabled={isPaginationLoading}
+                  />
+                  <span>/ {totalPages}</span>
+                </div>
+              )}
+              
+              {/* Items per page selector */}
+              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                <span>Səhifədə:</span>
+                <Select
+                  selectedKeys={rowsPerPage ? [rowsPerPage.toString()] : []}
+                  onSelectionChange={(keys) => {
+                    const newRowsPerPage = parseInt(Array.from(keys)[0] as string);
+                    setRowsPerPage(newRowsPerPage);
+                    setPage(1);
+                    setTotalPages(Math.ceil(deviceCount / newRowsPerPage));
+                  }}
+                  size="sm"
+                  className="w-20"
+                  variant="bordered"
+                  isDisabled={isPaginationLoading}
+                >
+                  <SelectItem key="10">10</SelectItem>
+                  <SelectItem key="25">25</SelectItem>
+                  <SelectItem key="50">50</SelectItem>
+                  <SelectItem key="100">100</SelectItem>
+                </Select>
+              </div>
             </div>
-          )}
+          </div>
         </CardBody>
       </Card>
 

@@ -1,7 +1,7 @@
 import type { Device, DeviceResponseDTO } from "../data/dtoInterfaces";
 
 export class HttpClient {
-    private baseUrl: string = 'http://localhost:8080/api';
+    private baseUrl: string = 'https://localhost:8443/api';
 
 
     async checkAuth() {
@@ -119,7 +119,9 @@ export class HttpClient {
     }
 
     async getVendorByIp(ipAddress: string) {
-    const response = await fetch(`${this.baseUrl}/device/getVendorByIp?ip=${encodeURIComponent(ipAddress)}`);
+    const response = await fetch(`${this.baseUrl}/device/getVendorByIp?ip=${encodeURIComponent(ipAddress)}`, {
+        credentials: 'include'
+    });
       
       if (response.ok) {
         const vendor = await response.text();
