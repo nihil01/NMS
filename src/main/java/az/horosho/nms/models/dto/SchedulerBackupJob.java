@@ -3,45 +3,34 @@ package az.horosho.nms.models.dto;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
 
 import java.io.*;
 
-@Component
 public class SchedulerBackupJob implements Job {
 
-    @Value("${spring.python_venv_path}")
-    private String venvPath;
-
-    @Value("${spring.inventory_path}")
-    private String inventoryPath;
-
-    @Value("${spring.playbook_path}")
-    private String playbookPath;
-
-    @Value("${spring.inventory_log_path}")
-    private String logPath;
-
-
-    @Override
+@Override
     public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
+        // Get configuration from JobDataMap
+        String venvPath = jobExecutionContext.getMergedJobDataMap().getString("venvPath");
+        String inventoryPath = jobExecutionContext.getMergedJobDataMap().getString("inventoryPath");
+        String playbookPath = jobExecutionContext.getMergedJobDataMap().getString("playbookPath");
+        String logPath = jobExecutionContext.getMergedJobDataMap().getString("logPath");
 
         //run python ansible script
 
-        String venvActivationScript = "source %s/bin/activate".formatted(venvPath);
-        String ansibleStartScript =
-            "ANSIBLE_FORCE_COLOR=true ansible-playbook -i %s %s | tee %s"
-                    .formatted(inventoryPath, playbookPath, logPath);
-
-        ProcessBuilder pb = new ProcessBuilder();
-        pb.command("bash", "-c", venvActivationScript + " && " + ansibleStartScript);
-        pb.inheritIO();
+        String activation = "source \"%s/bin/activate\"".formatted(venvPath);
+        String ansible = "ANSIBLE_FORCE_COLOR=true ansible-playbook -i \"%s\" \"%s\" | tee \"%s\"".formatted(
+                inventoryPath, playbookPath, logPath
+        );
 
         try {
-            Process process = pb.start();
 
-            int exitCode = process.waitFor();
+            ProcessBuilder pb = new ProcessBuilder();
+            pb.command("bash", "-c", "%s ; %s".formatted(activation, ansible));
+
+            System.out.println("process started!");
+
+            int exitCode = pb.start().waitFor();
             if (exitCode != 0) {
                 throw new JobExecutionException("Ansible process failed with exit code: " + exitCode);
             }else{
@@ -49,8 +38,10 @@ public class SchedulerBackupJob implements Job {
             }
 
         } catch (IOException e) {
+            System.out.println(e.getMessage());
             throw new JobExecutionException("Failed to start ansible process", e);
         } catch (InterruptedException e) {
+            System.out.println(e.getMessage());
             Thread.currentThread().interrupt();
             throw new JobExecutionException("Ansible process was interrupted", e);
         }

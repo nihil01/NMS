@@ -4,6 +4,7 @@ import az.horosho.nms.models.dto.SchedulerBackupJob;
 import az.horosho.nms.models.dto.DateDTO;
 import lombok.RequiredArgsConstructor;
 import org.quartz.*;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
@@ -13,6 +14,18 @@ import static org.quartz.JobBuilder.newJob;
 @RequiredArgsConstructor
 public class SchedulerService {
     private final Scheduler getScheduler;
+
+    @Value("${spring.python_venv_path}")
+    private String venvPath;
+
+    @Value("${spring.inventory_path}")
+    private String inventoryPath;
+
+    @Value("${spring.playbook_path}")
+    private String playbookPath;
+
+    @Value("${spring.inventory_log_path}")
+    private String logPath;
 
     public String dateToCronExpression(DateDTO dateData) {
         System.out.println(dateData);
@@ -26,11 +39,18 @@ public class SchedulerService {
             try {
                 String cron = dateToCronExpression(dateData);
                 System.out.println("Cron expression is: " + cron);
+                JobDataMap jdm = new JobDataMap();
+
+                jdm.put("venvPath", venvPath);
+                jdm.put("inventoryPath", inventoryPath);
+                jdm.put("playbookPath", playbookPath);
+                jdm.put("logPath", logPath);
 
                 if (!jobName.equalsIgnoreCase("backup")) return;
 
                 JobDetail jobDetail = newJob(SchedulerBackupJob.class)
                         .withIdentity(jobName, "backup-jobs")
+                        .setJobData(jdm)
                         .build();
 
                 Trigger trigger = TriggerBuilder.newTrigger()
