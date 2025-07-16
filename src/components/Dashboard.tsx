@@ -11,22 +11,21 @@ import {
 import { 
   ChartBarIcon, 
   ServerIcon, 
-  WifiIcon, 
-  ExclamationTriangleIcon,
   ArrowRightCircleIcon,
   ArrowLeftCircleIcon,
   PaperClipIcon,
   CheckCircleIcon,
-  SignalIcon,
   PowerIcon,
   ClockIcon,
-  CloudArrowDownIcon
+  CloudArrowDownIcon,
+  MapPinIcon
 } from '@heroicons/react/24/outline';
 
 import { HttpClient } from '../net/HttpClient';
 import { DeviceComponent } from './DeviceComponent';
 import { ScheduleComponent } from './ScheduleComponent';
 import AnsibleLogsComponent from './AnsibleLogsComponent';
+import GoogleMapsComponent from './GoogleMapsComponent';
 
 const Dashboard: React.FC<{ authenticated: (isAuthenticated: boolean) => void }> = ({ authenticated }) => {
 
@@ -103,14 +102,7 @@ const Dashboard: React.FC<{ authenticated: (isAuthenticated: boolean) => void }>
 
       case 'networkMap':
         return (
-          <Card className="dashboard-card">
-            <CardHeader className="pb-0">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Şəbəkə Xəritəsi</h3>
-            </CardHeader>
-            <CardBody>
-              <p className="text-gray-600 dark:text-gray-400">Şəbəkə xəritəsi funksiyaları tezliklə...</p>
-            </CardBody>
-          </Card>
+            <GoogleMapsComponent />
         );
 
       case 'ansibleLogs':
@@ -170,9 +162,9 @@ const Dashboard: React.FC<{ authenticated: (isAuthenticated: boolean) => void }>
                   ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400' 
                   : 'text-gray-700 dark:text-gray-300'
               }`}
-              startContent={<WifiIcon className="w-5 h-5" />}
+              startContent={<MapPinIcon className="w-5 h-5" />}
             >
-              Şəbəkə
+              Xəritə
             </Button>
             <Button
               onClick={() => setSelectedTab('schedule')}
@@ -214,6 +206,7 @@ const Dashboard: React.FC<{ authenticated: (isAuthenticated: boolean) => void }>
                   {selectedTab === 'devices' && 'Cihaz İdarəetməsi'}
                   {selectedTab === 'networkMap' && 'Şəbəkə Xəritəsi'}
                   {selectedTab === 'schedule' && 'Backupların Planlaması'}
+                  {selectedTab === 'ansibleLogs' && 'Ansible Logs'}
                 </h2>
                 <p className="text-gray-600 dark:text-gray-400">Şəbəkə infrastrukturunuzu real-time olaraq izləyin</p>
               </div>

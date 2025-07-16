@@ -78,6 +78,7 @@ export const DeviceComponent: React.FC<{ deviceCount: number }> = ({ deviceCount
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [locationPlaces, setLocationPlaces] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -98,6 +99,10 @@ export const DeviceComponent: React.FC<{ deviceCount: number }> = ({ deviceCount
 
         // Fetch devices and count in parallel
         const devicesData = await new HttpClient().getDevices();
+        const locationPlaces = await new HttpClient().getLocationPlaces();
+        console.log(locationPlaces);
+        setLocationPlaces(locationPlaces??[]);
+
         console.log("Initial devices fetched:")
         console.log(devicesData);
 
@@ -579,7 +584,7 @@ export const DeviceComponent: React.FC<{ deviceCount: number }> = ({ deviceCount
                 </Button>
               </div>
               
-              <Input
+              <Select
                 aria-label="Məkan"
                 placeholder="Məkan məlumatı"
                 value={newDevice.place}
@@ -587,7 +592,13 @@ export const DeviceComponent: React.FC<{ deviceCount: number }> = ({ deviceCount
                 variant="bordered"
                 isRequired
                 isDisabled={isAddingDevice}
-              />
+              >
+                {locationPlaces.map((place) => (
+                  <SelectItem key={place} aria-label={`Məkan ${place}`}>
+                    {place}
+                  </SelectItem>
+                ))}
+              </Select>
             </form>
           </ModalBody>
           <ModalFooter>

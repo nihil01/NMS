@@ -1,7 +1,7 @@
 import type { Device, DeviceResponseDTO } from "../data/dtoInterfaces";
 
 export class HttpClient {
-    private baseUrl: string = 'https://localhost:8443/api';
+    private baseUrl: string = 'http://localhost:8080/api';
 
 
     async checkAuth() {
@@ -177,6 +177,15 @@ export class HttpClient {
             credentials: 'include'
         });
 
+        return await response.json();
+    }
+
+
+    //location places
+    async getLocationPlaces() {
+        const response = await fetch(`${this.baseUrl}/device/getLocations`, {
+            credentials: 'include'
+        });
         return await response.json();
     }
 }
